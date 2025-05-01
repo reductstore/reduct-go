@@ -20,7 +20,11 @@ func TestReductStoreHealth(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to send request: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			t.Fatalf("Failed to close response body: %v", err)
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("Expected status code %d, got %d", http.StatusOK, resp.StatusCode)
