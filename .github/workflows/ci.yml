@@ -16,7 +16,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: stable
+          go-version: 1.24.2
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v7
         with:
@@ -30,7 +30,7 @@ jobs:
     - uses: actions/checkout@v4
     - uses: actions/setup-go@v5
       with:
-        go-version: stable
+        go-version: 1.24.2
     
     # Run build of the application
     - name: Run Build
@@ -109,4 +109,22 @@ jobs:
           go mod tidy
           go clean -testcache
           go test -v ./...
+  
+  publish:
+    needs: [run_tests, format]
+    runs-on: ubuntu-latest
+    if: ${{ startsWith(github.ref, 'refs/tags/v') }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: 1.24.2
+      - name: Publish to GitHub Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            ./main
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         
