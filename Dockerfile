@@ -6,7 +6,7 @@ COPY go.mod .
 COPY go.sum .
 
 # copy vendor folder if it exists - to support private repos
-COPY vendor/ vendor/
+# COPY vendor/ vendor/
 
 RUN go mod vendor
 
