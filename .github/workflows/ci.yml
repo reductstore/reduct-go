@@ -31,6 +31,8 @@ jobs:
     - uses: actions/setup-go@v5
       with:
         go-version: stable
+    - name: Download go packages
+        run: go mod vendor
     # Run build of the application
     - name: Run Build
       run: |
