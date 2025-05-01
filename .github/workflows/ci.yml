@@ -1,14 +1,16 @@
 name: ci
 on:
   push:
-    branches: [main]
+    # branches: [main]
+    branches: 
+     - "**"       # Run on any pushed branch for testing
     tags:
-      - "v*"
+      - "v*"       # Run on any pushed tag
   pull_request:
     branches: [main]
 
 jobs:
-  golangci:
+  format:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -19,6 +21,7 @@ jobs:
         uses: golangci/golangci-lint-action@v7
         with:
           version: v2.0
+          args: --timeout 5m --verbose
         
   build:
     needs: format
@@ -35,16 +38,72 @@ jobs:
         go mod vendor
         go build -v ./...
 
-  test:
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    - name: Build and export Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        tags: ${{ github.repository }}:latest
+        outputs: type=docker,dest=/tmp/image.tar
+    - name: Upload Docker image artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: image
+        path: /tmp/image.tar
+
+  run_tests:
     needs: build
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        token: ["", "token"]
+        reductstore_version: ["main", "latest"]
+        license: ["", "/workdir/lic.key"]
     steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-go@v5
-      with:
-        go-version: stable
-    - name: Run Test
-      run: |
-      go clean -testcache
-      go test -v ./...
+      - uses: actions/checkout@v4
+
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: image
+          path: /tmp/
+
+      - name: Generate license
+        run: echo '${{secrets.LICENSE_KEY}}' > lic.key
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USER }}
+          password: ${{ secrets.DOCKER_TOKEN }}
+
+      - name: Run ReductStore
+        run: |
+          docker run -p 8383:8383 -v ${PWD}:/workdir \
+            --env RS_API_TOKEN=${{ matrix.token }} \
+            --env RS_LOG_LEVEL=DEBUG \
+            --env RS_LICENSE_PATH=${{ matrix.license }} \
+            --env RS_EXT_PATH=/tmp \
+            -d reduct/store:${{ matrix.reductstore_version }}
       
+      - name: Wait for ReductStore to be ready
+        run: |
+          echo "Waiting for ReductStore to start..."
+          until curl --silent http://localhost:8383/; do
+            sleep 2
+          done
+
+      - name: Load image (optional)
+        run: |
+          docker load --input /tmp/image.tar || true
+
+      - name: Run Go tests
+        env:
+          RS_API_TOKEN: ${{ matrix.token }}
+          RS_LICENSE_PATH: ${{ matrix.license }}
+        run: |
+          go mod tidy
+          go clean -testcache
+          go test -v ./...
+        
