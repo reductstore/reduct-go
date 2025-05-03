@@ -102,6 +102,25 @@ jobs:
           go clean -testcache
           go test -v ./...
   
+  check_tag:
+    runs-on: ubuntu-latest
+    name: Check tag
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check if tag matches version
+        run: |
+          TAG_VERSION="${GITHUB_REF#refs/tags/}"
+          FILE_VERSION="v$(cat VERSION)"
+
+          echo "Tag: $TAG_VERSION"
+          echo "Version in file: $FILE_VERSION"
+
+          if [ "$TAG_VERSION" != "$FILE_VERSION" ]; then
+            echo "Tag does not match version in VERSION file"
+            exit 1
+          fi
   publish:
     needs: [run_tests, format]
     runs-on: ubuntu-latest
