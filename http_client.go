@@ -37,7 +37,11 @@ func DoRequest(ctx context.Context, url, method string, modifier func(req *http.
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			fmt.Printf("Failed to close response body: %v", err)
+		}
+	}()
 
 	// Read the response body
 	bodyBytes, err := io.ReadAll(resp.Body)
