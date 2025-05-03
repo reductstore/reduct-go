@@ -122,7 +122,7 @@ jobs:
             exit 1
           fi
   publish:
-    needs: [run_tests, format]
+    needs: [run_tests, format, check_tag]
     runs-on: ubuntu-latest
     if: ${{ startsWith(github.ref, 'refs/tags/v') }}
     steps:
