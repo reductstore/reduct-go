@@ -1,0 +1,110 @@
+name: ci
+on:
+  push:
+    branches: [ main, stable ]
+    tags:
+      - 'v*'
+    paths-ignore:
+      - docs/**
+      - README.md
+      - CHANGELOG.md
+
+  pull_request:
+    branches: [ main, stable ]
+    paths-ignore:
+      - docs/**
+      - README.md
+      - CHANGELOG.md
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: 1.24.2
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v7
+        with:
+          version: v2.0
+          args: --timeout 5m --verbose
+
+  run_tests:
+    name: Client SDK Tests
+    needs: format
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        reductstore_version: [ "main", "latest" ]
+        include:
+          - reductstore_version: main
+            features: "default,test-api-115"
+          - reductstore_version: latest
+            features: "default"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate license
+        run: echo '${{secrets.LICENSE_KEY}}' > lic.key
+
+      - name: Run ReductStore
+        run: |
+          docker run -p 8383:8383 -v ${PWD}:/workdir \
+            --env RS_API_TOKEN=${{ matrix.token }} \
+            --env RS_LOG_LEVEL=DEBUG \
+            --env RS_LICENSE_PATH=${{ matrix.license }} \
+            --env RS_EXT_PATH=/tmp \
+            -d reduct/store:${{ matrix.reductstore_version }}
+      
+      - name: Wait for ReductStore to be ready
+        run: |
+          echo "Waiting for ReductStore to start..."
+          until curl --silent http://localhost:8383/; do
+            sleep 2
+          done
+      - name: Run Go tests
+        env:
+          RS_API_TOKEN: ${{ matrix.token }}
+          RS_LICENSE_PATH: ${{ matrix.license }}
+        run: |
+          go mod tidy
+          go clean -testcache
+          go test -v ./...
+  
+  check_tag:
+    runs-on: ubuntu-latest
+    name: Check tag
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check if tag matches version
+        run: |
+          TAG_VERSION="${GITHUB_REF#refs/tags/}"
+          FILE_VERSION="v$(cat VERSION)"
+
+          echo "Tag: $TAG_VERSION"
+          echo "Version in file: $FILE_VERSION"
+
+          if [ "$TAG_VERSION" != "$FILE_VERSION" ]; then
+            echo "Tag does not match version in VERSION file"
+            exit 1
+          fi
+  publish:
+    needs: [run_tests, format, check_tag]
+    runs-on: ubuntu-latest
+    if: ${{ startsWith(github.ref, 'refs/tags/v') }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: 1.24.2
+      - name: Publish to GitHub Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            ./main
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        
