@@ -11,7 +11,7 @@ import (
 const (
 	DefaultBaseURL = "http://localhost:8383"
 	APIVersion     = "v1"
-	DefaultTimeout = 10 * time.Second
+	DefaultTimeout = 60 * time.Second
 )
 
 // add optional options
