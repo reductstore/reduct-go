@@ -36,7 +36,9 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        reductstore_version: [ "main", "latest" ]
+        reductstore_version: [ "main", "latest"]
+        license: ["", "/workdir/lic.key"]
+        token: ["", "token"]
         include:
           - reductstore_version: main
             features: "default,test-api-115"
