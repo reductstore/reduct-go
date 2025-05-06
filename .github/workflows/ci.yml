@@ -42,6 +42,7 @@ jobs:
             features: "default,test-api-115"
           - reductstore_version: latest
             features: "default"
+
     steps:
       - uses: actions/checkout@v4
       - name: Generate license
