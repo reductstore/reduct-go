@@ -83,10 +83,12 @@ func (c *httpClient) Put(ctx context.Context, path string, requestBody, response
 	c.setClientHeaders(req)
 	// Create an HTTP client and perform the request
 	resp, err := c.client.Do(req)
+	reductError := resp.Header.Get("X-Reduct-Error")
 	if err != nil {
 		return &model.APIError{
 			Message:  err.Error(),
 			Original: err,
+			Status:   resp.StatusCode,
 		}
 	}
 	defer func() {
@@ -98,19 +100,28 @@ func (c *httpClient) Put(ctx context.Context, path string, requestBody, response
 	// Read the response body
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return &model.APIError{Original: err}
+		return &model.APIError{
+			Message:  reductError,
+			Original: err,
+			Status:   resp.StatusCode,
+		}
 	}
 	// Check for non-OK status codes
 	if resp.StatusCode != http.StatusOK {
-		// TODO: handle non ok, get x-reduct-error
-		return &model.APIError{Status: resp.StatusCode}
+		return &model.APIError{
+			Message:  reductError,
+			Original: err,
+			Status:   resp.StatusCode,
+		}
 	}
 	if responseData != nil && len(bodyBytes) > 0 {
 		// Unmarshal the response into the provided responseData interface
 		err := json.Unmarshal(bodyBytes, responseData)
 		if err != nil {
 			return &model.APIError{
+				Message:  reductError,
 				Original: err,
+				Status:   resp.StatusCode,
 			}
 		}
 	}
@@ -148,10 +159,13 @@ func (c *httpClient) Post(ctx context.Context, path string, requestBody, respons
 	c.setClientHeaders(req)
 	// Create an HTTP client and perform the request
 	resp, err := c.client.Do(req)
+	reductError := resp.Header.Get("X-Reduct-Error")
+
 	if err != nil {
 		return &model.APIError{
-			Message:  err.Error(),
+			Message:  reductError,
 			Original: err,
+			Status:   resp.StatusCode,
 		}
 	}
 	defer func() {
@@ -163,19 +177,26 @@ func (c *httpClient) Post(ctx context.Context, path string, requestBody, respons
 	// Read the response body
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return &model.APIError{Original: err}
+		return &model.APIError{
+			Message:  reductError,
+			Original: err,
+			Status:   resp.StatusCode}
 	}
 	// Check for non-OK status codes
 	if resp.StatusCode != http.StatusOK {
-		// TODO: handle non ok, get x-reduct-error
-		return &model.APIError{Status: resp.StatusCode}
+		return &model.APIError{
+			Message:  reductError,
+			Original: err,
+			Status:   resp.StatusCode}
 	}
 	if responseData != nil && len(bodyBytes) > 0 {
 		// Unmarshal the response into the provided responseData interface
 		err := json.Unmarshal(bodyBytes, responseData)
 		if err != nil {
 			return &model.APIError{
+				Message:  reductError,
 				Original: err,
+				Status:   resp.StatusCode,
 			}
 		}
 	}
@@ -196,8 +217,14 @@ func (c *httpClient) Get(ctx context.Context, path string, responseData any) err
 	c.setClientHeaders(req)
 	// Create an HTTP client and perform the request
 	resp, err := c.client.Do(req)
+	reductError := resp.Header.Get("X-Reduct-Error")
+
 	if err != nil {
-		return &model.APIError{Original: err}
+		return &model.APIError{
+			Message:  reductError,
+			Original: err,
+			Status:   resp.StatusCode,
+		}
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
@@ -209,20 +236,27 @@ func (c *httpClient) Get(ctx context.Context, path string, responseData any) err
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return &model.APIError{
+			Message:  reductError,
 			Original: err,
+			Status:   resp.StatusCode,
 		}
 	}
 	// Check for non-OK status codes
 	if resp.StatusCode != http.StatusOK {
-		// TODO: handle non ok, get x-reduct-error
-		return &model.APIError{Status: resp.StatusCode}
+		return &model.APIError{
+			Message:  reductError,
+			Original: err,
+			Status:   resp.StatusCode,
+		}
 	}
 	if responseData != nil && len(bodyBytes) > 0 {
 		// Unmarshal the response into the provided responseData interface
 		err := json.Unmarshal(bodyBytes, responseData)
 		if err != nil {
 			return &model.APIError{
+				Message:  reductError,
 				Original: err,
+				Status:   resp.StatusCode,
 			}
 		}
 	}
@@ -243,8 +277,13 @@ func (c *httpClient) Head(ctx context.Context, path string) error {
 	c.setClientHeaders(req)
 	// Create an HTTP client and perform the request
 	resp, err := c.client.Do(req)
+	reductError := resp.Header.Get("X-Reduct-Error")
 	if err != nil {
-		return &model.APIError{Original: err}
+		return &model.APIError{
+			Message:  reductError,
+			Original: err,
+			Status:   resp.StatusCode,
+		}
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
@@ -254,8 +293,11 @@ func (c *httpClient) Head(ctx context.Context, path string) error {
 
 	// Check for non-OK status codes
 	if resp.StatusCode != http.StatusOK {
-		// TODO: handle non ok, get x-reduct-error
-		return &model.APIError{Status: resp.StatusCode}
+		return &model.APIError{
+			Message:  reductError,
+			Original: err,
+			Status:   resp.StatusCode,
+		}
 	}
 
 	return nil
@@ -275,8 +317,14 @@ func (c *httpClient) Delete(ctx context.Context, path string) error {
 	c.setClientHeaders(req)
 	// Create an HTTP client and perform the request
 	resp, err := c.client.Do(req)
+	reductError := resp.Header.Get("X-Reduct-Error")
+
 	if err != nil {
-		return &model.APIError{Original: err}
+		return &model.APIError{
+			Message:  reductError,
+			Original: err,
+			Status:   resp.StatusCode,
+		}
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
@@ -286,8 +334,11 @@ func (c *httpClient) Delete(ctx context.Context, path string) error {
 
 	// Check for non-OK status codes
 	if resp.StatusCode != http.StatusOK {
-		// TODO: handle non ok, get x-reduct-error
-		return &model.APIError{Status: resp.StatusCode}
+		return &model.APIError{
+			Message:  reductError,
+			Original: err,
+			Status:   resp.StatusCode,
+		}
 	}
 
 	return nil
