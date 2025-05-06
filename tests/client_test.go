@@ -70,7 +70,7 @@ func TestBucketExistsFail(t *testing.T) {
 	client := reductgo.NewClient(serverUrl, reductgo.ClientOptions{
 		ApiToken: apiToken,
 	})
-	exists, err := client.CheckExists(ctx, "new-not-exist")
+	exists, err := client.CheckBucketExists(ctx, "new-not-exist")
 	assert.Error(t, err)
 	assert.False(t, exists)
 }

@@ -19,7 +19,7 @@ type Client interface {
 	// Get a bucket
 	GetBucket(ctx context.Context, name string) (Bucket, error)
 	// Check if a bucket exists
-	CheckExists(ctx context.Context, name string) (bool, error)
+	CheckBucketExists(ctx context.Context, name string) (bool, error)
 	// Remove a bucket
 	RemoveBucket(ctx context.Context, name string) error
 }
@@ -84,7 +84,7 @@ func (c *ReductClient) CreateOrGetBucket(ctx context.Context, name string, setti
 	return NewBucket(name, c.HttpClient), err
 }
 
-func (c *ReductClient) CheckExists(ctx context.Context, name string) (bool, error) {
+func (c *ReductClient) CheckBucketExists(ctx context.Context, name string) (bool, error) {
 
 	err := c.HttpClient.Head(ctx, fmt.Sprintf(`/b/%s`, name))
 	if err != nil {
