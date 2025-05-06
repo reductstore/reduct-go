@@ -35,15 +35,6 @@ type BucketInfo struct {
 	IsProvisioned bool `json:"is_provisioned"`
 }
 
-// Request to create a new bucket using client
-type CreateBucketRequest struct {
-	BucketName      string    `json:"bucket_name"`
-	MaxBlockSize    int64     `json:"max_block_size"`
-	MaxBlockRecords int64     `json:"max_block_records"`
-	QuotaType       QuotaType `json:"quota_type"`
-	QuotaSize       int64     `json:"quota_size"`
-}
-
 // Information about the bucket in JSON format
 type FullBucketDetail struct {
 	// bucket settings

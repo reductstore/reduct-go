@@ -7,59 +7,87 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"reduct-go/model"
 	"time"
 )
 
+const (
+	APIVersion = "v1"
+)
+
 type HTTPClient interface {
-	Do(ctx context.Context, url, method string, requestBody, responseData any) error
+	Post(ctx context.Context, path string, requestBody, responseData any) error
+	Put(ctx context.Context, path string, requestBody, responseData any) error
+	Get(ctx context.Context, path string, responseData any) error
+	Head(ctx context.Context, path string) error
+	Delete(ctx context.Context, path string) error
 }
 
-// ClientModifier is a function that modifies the request
-// it is used to add custom headers, or other modifications to the request
-// before it is sent to the server
-type ClientModifier func(req *http.Request)
+type HttpClientOption struct {
+	BaseUrl   string
+	ApiToken  string
+	Timeout   time.Duration
+	VerifySSL bool
+}
 
 type httpClient struct {
-	client    *http.Client
-	modifiers []ClientModifier
+	client   *http.Client
+	apiToken string
+	url      string
 }
 
-func NewHTTPClient(timeout time.Duration, modifiers ...ClientModifier) HTTPClient {
+func NewHTTPClient(option HttpClientOption) HTTPClient {
 	return &httpClient{
 		client: &http.Client{
-			Timeout: timeout,
+			Timeout: option.Timeout,
 		},
-		modifiers: modifiers,
+		url:      fmt.Sprintf("%s/api/%s", option.BaseUrl, APIVersion),
+		apiToken: option.ApiToken,
 	}
 }
 
-func (c *httpClient) Do(ctx context.Context, url, method string, requestBody, responseData any) error {
+func (c *httpClient) setClientHeaders(req *http.Request) {
+	req.Header.Set("Authorization", "Bearer "+c.apiToken)
+	req.Header.Set("Content-Type", "application/json")
+}
+
+func (c *httpClient) Put(ctx context.Context, path string, requestBody, responseData any) error {
 	if c.client == nil {
-		return fmt.Errorf("http client is not initialized")
+		return &model.APIError{
+			Message: "http client is not initialized",
+		}
 	}
 	// Marshal the request body to JSON
 	var reqBody io.Reader
 	if requestBody != nil {
 		jsonData, err := json.Marshal(requestBody)
 		if err != nil {
-			return err
+			return &model.APIError{
+				Message:  err.Error(),
+				Original: err,
+			}
 		}
 		reqBody = bytes.NewBuffer(jsonData)
 	} else {
 		reqBody = nil
 	}
 	// Create a new HTTP request
-	req, err := http.NewRequestWithContext(ctx, method, url, reqBody)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPut, c.url+path, reqBody)
 	if err != nil {
-		return err
+		return &model.APIError{
+			Original: err,
+			Message:  err.Error(),
+		}
 	}
-	for _, modifier := range c.modifiers {
-		modifier(req)
-	}
+	// set reques headers
+	c.setClientHeaders(req)
 	// Create an HTTP client and perform the request
 	resp, err := c.client.Do(req)
 	if err != nil {
-		return err
+		return &model.APIError{
+			Message:  err.Error(),
+			Original: err,
+		}
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
@@ -70,15 +98,197 @@ func (c *httpClient) Do(ctx context.Context, url, method string, requestBody, re
 	// Read the response body
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return err
+		return &model.APIError{Original: err}
 	}
 	// Check for non-OK status codes
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("API request failed with status %d: %s", resp.StatusCode, string(bodyBytes))
+		// TODO: handle non ok, get x-reduct-error
+		return &model.APIError{Status: resp.StatusCode}
 	}
 	if responseData != nil && len(bodyBytes) > 0 {
 		// Unmarshal the response into the provided responseData interface
-		return json.Unmarshal(bodyBytes, responseData)
+		err := json.Unmarshal(bodyBytes, responseData)
+		if err != nil {
+			return &model.APIError{
+				Original: err,
+			}
+		}
 	}
+	return nil
+}
+func (c *httpClient) Post(ctx context.Context, path string, requestBody, responseData any) error {
+	if c.client == nil {
+		return &model.APIError{
+			Message: "http client is not initialized",
+		}
+	}
+	// Marshal the request body to JSON
+	var reqBody io.Reader
+	if requestBody != nil {
+		jsonData, err := json.Marshal(requestBody)
+		if err != nil {
+			return &model.APIError{
+				Message:  err.Error(),
+				Original: err,
+			}
+		}
+		reqBody = bytes.NewBuffer(jsonData)
+	} else {
+		reqBody = nil
+	}
+	// Create a new HTTP request
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.url+path, reqBody)
+	if err != nil {
+		return &model.APIError{
+			Original: err,
+			Message:  err.Error(),
+		}
+	}
+	// set reques headers
+	c.setClientHeaders(req)
+	// Create an HTTP client and perform the request
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return &model.APIError{
+			Message:  err.Error(),
+			Original: err,
+		}
+	}
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			fmt.Printf("Failed to close response body: %v", err)
+		}
+	}()
+
+	// Read the response body
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return &model.APIError{Original: err}
+	}
+	// Check for non-OK status codes
+	if resp.StatusCode != http.StatusOK {
+		// TODO: handle non ok, get x-reduct-error
+		return &model.APIError{Status: resp.StatusCode}
+	}
+	if responseData != nil && len(bodyBytes) > 0 {
+		// Unmarshal the response into the provided responseData interface
+		err := json.Unmarshal(bodyBytes, responseData)
+		if err != nil {
+			return &model.APIError{
+				Original: err,
+			}
+		}
+	}
+	return nil
+}
+
+func (c *httpClient) Get(ctx context.Context, path string, responseData any) error {
+	if c.client == nil {
+		return &model.APIError{Message: "http client is not initialized"}
+	}
+
+	// Create a new HTTP request
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.url+path, nil)
+	if err != nil {
+		return &model.APIError{Original: err}
+	}
+	// set reques headers
+	c.setClientHeaders(req)
+	// Create an HTTP client and perform the request
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return &model.APIError{Original: err}
+	}
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			fmt.Printf("Failed to close response body: %v", err)
+		}
+	}()
+
+	// Read the response body
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return &model.APIError{
+			Original: err,
+		}
+	}
+	// Check for non-OK status codes
+	if resp.StatusCode != http.StatusOK {
+		// TODO: handle non ok, get x-reduct-error
+		return &model.APIError{Status: resp.StatusCode}
+	}
+	if responseData != nil && len(bodyBytes) > 0 {
+		// Unmarshal the response into the provided responseData interface
+		err := json.Unmarshal(bodyBytes, responseData)
+		if err != nil {
+			return &model.APIError{
+				Original: err,
+			}
+		}
+	}
+	return nil
+}
+
+func (c *httpClient) Head(ctx context.Context, path string) error {
+	if c.client == nil {
+		return &model.APIError{Message: "http client is not initialized"}
+	}
+
+	// Create a new HTTP request
+	req, err := http.NewRequestWithContext(ctx, http.MethodHead, c.url+path, nil)
+	if err != nil {
+		return &model.APIError{Original: err}
+	}
+	// set reques headers
+	c.setClientHeaders(req)
+	// Create an HTTP client and perform the request
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return &model.APIError{Original: err}
+	}
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			fmt.Printf("Failed to close response body: %v", err)
+		}
+	}()
+
+	// Check for non-OK status codes
+	if resp.StatusCode != http.StatusOK {
+		// TODO: handle non ok, get x-reduct-error
+		return &model.APIError{Status: resp.StatusCode}
+	}
+
+	return nil
+}
+
+func (c *httpClient) Delete(ctx context.Context, path string) error {
+	if c.client == nil {
+		return &model.APIError{Message: "http client is not initialized"}
+	}
+
+	// Create a new HTTP request
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, c.url+path, nil)
+	if err != nil {
+		return &model.APIError{Original: err}
+	}
+	// set reques headers
+	c.setClientHeaders(req)
+	// Create an HTTP client and perform the request
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return &model.APIError{Original: err}
+	}
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			fmt.Printf("Failed to close response body: %v", err)
+		}
+	}()
+
+	// Check for non-OK status codes
+	if resp.StatusCode != http.StatusOK {
+		// TODO: handle non ok, get x-reduct-error
+		return &model.APIError{Status: resp.StatusCode}
+	}
+
 	return nil
 }
