@@ -15,6 +15,7 @@ import (
 )
 
 var mainTestBucket = reductgo.Bucket{}
+var client = reductgo.ReductClient{}
 
 func getRandomBucketName() string {
 	return fmt.Sprintf("test-bucket-%d", rand.Intn(1000000))
@@ -37,15 +38,16 @@ func setup() {
 		QuotaType:       model.QuotaTypeFifo,
 		QuotaSize:       1024 * 1024 * 1024,
 	}
+	client = *getNewTestClient()
 
-	_, err := getNewTestClient().CreateBucket(context.Background(), mainTestBucket.Name, settings)
+	_, err := client.CreateBucket(context.Background(), mainTestBucket.Name, settings)
 	if err != nil {
 		log.Fatal(err)
 	}
 }
 
 func tearDown() {
-	_ = getNewTestClient().RemoveBucket(context.Background(), mainTestBucket.Name)
+	_ = client.RemoveBucket(context.Background(), mainTestBucket.Name)
 }
 
 func TestMain(m *testing.M) {

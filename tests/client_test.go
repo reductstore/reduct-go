@@ -2,8 +2,6 @@ package tests
 
 import (
 	"context"
-	"os"
-	reductgo "reduct-go"
 	"reduct-go/model"
 	"testing"
 
@@ -12,13 +10,22 @@ import (
 
 var serverUrl = "http://localhost:8383"
 
+func TestCreateOrGetBucket_Success(t *testing.T) {
+	settings := model.BucketSetting{
+		MaxBlockSize:    1024,
+		MaxBlockRecords: 1000,
+		QuotaType:       model.QuotaTypeFifo,
+		QuotaSize:       1024 * 1024 * 1024,
+	}
+	bucket, err := client.CreateOrGetBucket(context.Background(), mainTestBucket.Name, settings)
+	assert.NoError(t, err)
+	assert.Equal(t, bucket.Name, mainTestBucket.Name)
+}
+
 // Creating a new bucket should succeed
 func TestCreateBucket_Success(t *testing.T) {
 	ctx := context.Background()
-	var apiToken = os.Getenv("RS_API_TOKEN")
-	client := reductgo.NewClient(serverUrl, reductgo.ClientOptions{
-		ApiToken: apiToken,
-	})
+
 	var newBucketName = getRandomBucketName()
 	info, err := client.CreateBucket(ctx, newBucketName, model.BucketSetting{
 		MaxBlockSize:    1024,
@@ -37,10 +44,7 @@ func TestCreateBucket_Success(t *testing.T) {
 // Creating an existing bucket should fail
 func TestCreateBucket_Fail(t *testing.T) {
 	ctx := context.Background()
-	var apiToken = os.Getenv("RS_API_TOKEN")
-	client := reductgo.NewClient(serverUrl, reductgo.ClientOptions{
-		ApiToken: apiToken,
-	})
+
 	bucketName := getRandomBucketName()
 	_, err := client.CreateBucket(ctx, bucketName, model.BucketSetting{
 		MaxBlockSize:    1024,
@@ -65,11 +69,8 @@ func TestCreateBucket_Fail(t *testing.T) {
 }
 
 func TestBucketExistsFail(t *testing.T) {
-	var apiToken = os.Getenv("RS_API_TOKEN")
 	ctx := context.Background()
-	client := reductgo.NewClient(serverUrl, reductgo.ClientOptions{
-		ApiToken: apiToken,
-	})
+
 	exists, err := client.CheckBucketExists(ctx, "new-not-exist")
 	assert.Error(t, err)
 	assert.False(t, exists)
