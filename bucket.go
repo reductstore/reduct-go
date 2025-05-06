@@ -8,37 +8,28 @@ import (
 )
 
 type Bucket struct {
-	httpClient httpclient.HTTPClient
-	name       string
+	HttpClient httpclient.HTTPClient
+	Name       string
 }
 
 func NewBucket(name string, httpClient httpclient.HTTPClient) Bucket {
 	return Bucket{
-		httpClient: httpClient,
-		name:       name,
+		HttpClient: httpClient,
+		Name:       name,
 	}
 }
 
 func (b *Bucket) CheckExists(ctx context.Context) (bool, error) {
-	err := b.httpClient.Head(ctx, fmt.Sprintf("/b/%s", b.name))
+	err := b.HttpClient.Head(ctx, fmt.Sprintf("/b/%s", b.Name))
 	if err != nil {
 		return false, err
 	}
 	return true, nil
 }
 
-func (b *Bucket) Create(ctx context.Context, settings model.BucketSetting) (model.BucketInfo, error) {
-	resp := &model.BucketInfo{}
-	err := b.httpClient.Post(ctx, fmt.Sprintf("/b/%s", b.name), settings, resp)
-	if err != nil {
-		return model.BucketInfo{}, err
-	}
-	return *resp, nil
-}
-
 func (b *Bucket) GetInfo(ctx context.Context) (model.BucketInfo, error) {
 	resp := &model.FullBucketDetail{}
-	err := b.httpClient.Get(ctx, fmt.Sprintf("/b/%s", b.name), resp)
+	err := b.HttpClient.Get(ctx, fmt.Sprintf("/b/%s", b.Name), resp)
 	if err != nil {
 		return model.BucketInfo{}, err
 	}
@@ -47,7 +38,7 @@ func (b *Bucket) GetInfo(ctx context.Context) (model.BucketInfo, error) {
 
 func (b *Bucket) GetSettings(ctx context.Context) (model.BucketSetting, error) {
 	resp := &model.FullBucketDetail{}
-	err := b.httpClient.Get(ctx, fmt.Sprintf("/b/%s", b.name), resp)
+	err := b.HttpClient.Get(ctx, fmt.Sprintf("/b/%s", b.Name), resp)
 	if err != nil {
 		return model.BucketSetting{}, err
 	}
@@ -55,7 +46,7 @@ func (b *Bucket) GetSettings(ctx context.Context) (model.BucketSetting, error) {
 }
 
 func (b *Bucket) SetSettings(ctx context.Context, settings model.BucketSetting) error {
-	err := b.httpClient.Put(ctx, fmt.Sprintf("/b/%s", b.name), settings, nil)
+	err := b.HttpClient.Put(ctx, fmt.Sprintf("/b/%s", b.Name), settings, nil)
 	if err != nil {
 		return err
 	}
@@ -63,15 +54,15 @@ func (b *Bucket) SetSettings(ctx context.Context, settings model.BucketSetting) 
 }
 
 func (b *Bucket) Rename(ctx context.Context, newName string) error {
-	err := b.httpClient.Put(ctx, fmt.Sprintf("/b/%s/rename", b.name), map[string]string{"new_name": newName}, nil)
+	err := b.HttpClient.Put(ctx, fmt.Sprintf("/b/%s/rename", b.Name), map[string]string{"new_name": newName}, nil)
 	if err != nil {
 		return err
 	}
-	b.name = newName
+	b.Name = newName
 	return nil
 }
-func (b *Bucket) Delete(ctx context.Context) error {
-	err := b.httpClient.Delete(ctx, fmt.Sprintf("/b/%s", b.name))
+func (b *Bucket) Remove(ctx context.Context) error {
+	err := b.HttpClient.Delete(ctx, fmt.Sprintf("/b/%s", b.Name))
 	if err != nil {
 		return err
 	}
