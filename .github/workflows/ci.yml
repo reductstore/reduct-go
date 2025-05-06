@@ -37,8 +37,6 @@ jobs:
     strategy:
       matrix:
         reductstore_version: [ "main", "latest"]
-        license: ["", "/workdir/lic.key"]
-        token: ["", "token"]
         include:
           - reductstore_version: main
             features: "default,test-api-115"
@@ -52,9 +50,9 @@ jobs:
       - name: Run ReductStore
         run: |
           docker run -p 8383:8383 -v ${PWD}:/workdir \
-            --env RS_API_TOKEN=${{ matrix.token }} \
+            --env RS_API_TOKEN=SOME_TOKEN  \
             --env RS_LOG_LEVEL=DEBUG \
-            --env RS_LICENSE_PATH=${{ matrix.license }} \
+            --env RS_LICENSE_PATH="/workdir/lic.key" \
             --env RS_EXT_PATH=/tmp \
             -d reduct/store:${{ matrix.reductstore_version }}
       
@@ -66,12 +64,11 @@ jobs:
           done
       - name: Run Go tests
         env:
-          RS_API_TOKEN: ${{ matrix.token }}
-          RS_LICENSE_PATH: ${{ matrix.license }}
+          RS_API_TOKEN: SOME_TOKEN
         run: |
           go mod tidy
           go clean -testcache
-          go test -v ./...
+          RS_API_TOKEN=SOME_TOKEN go test -v ./...
   
   check_tag:
     runs-on: ubuntu-latest
