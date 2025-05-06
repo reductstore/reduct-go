@@ -8,3 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 * Github Actions workflow
+* Handle X-Reduct-error on http client
+* Added client methods 
+    - CreateBucket 
+    - CreateOrGetBucket
+    - GetBucket
+    - CheckBucketExists
+    - RemoveBucket
+* Added bucket methods 
+    - CheckExists
+    - GetInfo
+    - GetSettings
+    - SetSettings
+    - Rename
+    - Remove
