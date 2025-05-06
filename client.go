@@ -77,8 +77,13 @@ func (c *ReductClient) CreateOrGetBucket(ctx context.Context, name string, setti
 
 	err := c.HttpClient.Post(ctx, fmt.Sprintf("/b/%s", name), settings, nil)
 	if err != nil {
-		// try get it
-		return c.GetBucket(ctx, name)
+		if apiErr, ok := err.(*model.APIError); ok {
+			if apiErr.Status == 409 {
+				return c.GetBucket(ctx, name)
+			}
+		} else {
+			return Bucket{}, err
+		}
 	}
 
 	return NewBucket(name, c.HttpClient), err
