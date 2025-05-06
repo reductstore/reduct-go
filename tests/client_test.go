@@ -19,7 +19,7 @@ func getRandomBucketName() string {
 	return fmt.Sprintf("test-bucket-%d", rand.Intn(1000000))
 }
 func init() {
-	godotenv.Load("../.env") // Loads env from .env into os.Environ
+	_ = godotenv.Load("../.env") // Loads env from .env into os.Environ
 }
 func TestCreateBucket(t *testing.T) {
 	var apiToken = os.Getenv("RS_API_TOKEN")
