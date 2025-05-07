@@ -17,7 +17,7 @@ on:
       - CHANGELOG.md
 
 jobs:
-  format:
+  formatAndLint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -32,7 +32,7 @@ jobs:
 
   run_tests:
     name: Client SDK Tests
-    needs: format
+    needs: formatAndLint
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -91,7 +91,7 @@ jobs:
             exit 1
           fi
   publish:
-    needs: [run_tests, format, check_tag]
+    needs: [run_tests, formatAndLint, check_tag]
     runs-on: ubuntu-latest
     if: ${{ startsWith(github.ref, 'refs/tags/v') }}
     steps:
