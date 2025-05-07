@@ -11,12 +11,10 @@ import (
 var serverUrl = "http://localhost:8383"
 
 func TestCreateOrGetBucket_Success(t *testing.T) {
-	settings := model.BucketSetting{
-		MaxBlockSize:    1024,
-		MaxBlockRecords: 1000,
-		QuotaType:       model.QuotaTypeFifo,
-		QuotaSize:       1024 * 1024 * 1024,
-	}
+	settings := model.NewBucketSettingBuilder().
+		WithQuotaSize(1024 * 1024 * 1024).
+		WithQuotaType(model.QuotaTypeFifo).
+		WithMaxBlockRecords(1000).WithMaxBlockSize(1024).Build()
 	bucket, err := client.CreateOrGetBucket(context.Background(), mainTestBucket.Name, settings)
 	assert.NoError(t, err)
 	assert.Equal(t, bucket.Name, mainTestBucket.Name)
@@ -27,12 +25,11 @@ func TestCreateBucket_Success(t *testing.T) {
 	ctx := context.Background()
 
 	var newBucketName = getRandomBucketName()
-	info, err := client.CreateBucket(ctx, newBucketName, model.BucketSetting{
-		MaxBlockSize:    1024,
-		MaxBlockRecords: 1000,
-		QuotaType:       model.QuotaTypeFifo,
-		QuotaSize:       1024,
-	})
+	settings := model.NewBucketSettingBuilder().
+		WithQuotaSize(1024 * 1024 * 1024).
+		WithQuotaType(model.QuotaTypeFifo).
+		WithMaxBlockRecords(1000).WithMaxBlockSize(1024).Build()
+	info, err := client.CreateBucket(ctx, newBucketName, settings)
 	assert.NoError(t, err)
 	assert.Equal(t, newBucketName, info.Name)
 
@@ -44,23 +41,16 @@ func TestCreateBucket_Success(t *testing.T) {
 // Creating an existing bucket should fail
 func TestCreateBucket_Fail(t *testing.T) {
 	ctx := context.Background()
-
+	settings := model.NewBucketSettingBuilder().
+		WithQuotaSize(1024 * 1024 * 1024).
+		WithQuotaType(model.QuotaTypeFifo).
+		WithMaxBlockRecords(1000).WithMaxBlockSize(1024).Build()
 	bucketName := getRandomBucketName()
-	_, err := client.CreateBucket(ctx, bucketName, model.BucketSetting{
-		MaxBlockSize:    1024,
-		MaxBlockRecords: 1000,
-		QuotaType:       model.QuotaTypeFifo,
-		QuotaSize:       1024,
-	})
+	_, err := client.CreateBucket(ctx, bucketName, settings)
 
 	assert.NoError(t, err)
 	// trying to create existing bucket again
-	_, err = client.CreateBucket(ctx, bucketName, model.BucketSetting{
-		MaxBlockSize:    1024,
-		MaxBlockRecords: 1000,
-		QuotaType:       model.QuotaTypeFifo,
-		QuotaSize:       1024,
-	})
+	_, err = client.CreateBucket(ctx, bucketName, settings)
 	assert.Error(t, err)
 
 	// remove bucket

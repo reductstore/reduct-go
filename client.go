@@ -1,3 +1,5 @@
+// Package reductgo provides functionality for managing Reduct object storage, including
+// client operations, bucket management
 package reductgo
 
 import (

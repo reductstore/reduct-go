@@ -32,12 +32,13 @@ func getNewTestClient() *reductgo.ReductClient {
 	}
 }
 func setup() {
-	settings := model.BucketSetting{
-		MaxBlockSize:    1024,
-		MaxBlockRecords: 1000,
-		QuotaType:       model.QuotaTypeFifo,
-		QuotaSize:       1024 * 1024 * 1024,
-	}
+
+	settings := model.NewBucketSettingBuilder().
+		WithQuotaSize(1024 * 1024 * 1024).
+		WithQuotaType(model.QuotaTypeFifo).
+		WithMaxBlockRecords(1000).
+		WithMaxBlockSize(1024).Build()
+
 	client = *getNewTestClient()
 
 	_, err := client.CreateBucket(context.Background(), mainTestBucket.Name, settings)

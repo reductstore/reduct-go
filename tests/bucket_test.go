@@ -16,17 +16,15 @@ func TestRenameBucket(t *testing.T) {
 
 func TestUpdateSettings(t *testing.T) {
 	// update settings
-	err := mainTestBucket.SetSettings(context.Background(), model.BucketSetting{
-		MaxBlockSize:    2048,
-		MaxBlockRecords: 2000,
-		QuotaType:       model.QuotaTypeNone,
-		QuotaSize:       2048,
-	})
+	settings := model.NewBucketSettingBuilder().
+		WithQuotaSize(2048).
+		WithMaxBlockRecords(2000).WithMaxBlockSize(3000).Build()
+	err := mainTestBucket.SetSettings(context.Background(), settings)
 	assert.NoError(t, err)
 	// get the bucket settings and check if the settings are updated
-	settings, err := mainTestBucket.GetSettings(context.Background())
+	settings, err = mainTestBucket.GetSettings(context.Background())
 	assert.NoError(t, err)
-	assert.Equal(t, int64(2048), settings.MaxBlockSize)
+	assert.Equal(t, int64(3000), settings.MaxBlockSize)
 	assert.Equal(t, int64(2000), settings.MaxBlockRecords)
 	assert.Equal(t, model.QuotaTypeNone, settings.QuotaType)
 	assert.Equal(t, int64(2048), settings.QuotaSize)
