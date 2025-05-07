@@ -1,6 +1,6 @@
 package model
 
-// Information about entry
+// Information about entry.
 type EntryInfo struct {
 	Name         string `json:"name"`          // Name of the entry
 	BlockCount   int64  `json:"block_count"`   // Number of blocks

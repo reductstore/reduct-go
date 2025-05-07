@@ -5,14 +5,15 @@ package reductgo
 import (
 	"context"
 	"fmt"
+	"time"
+
 	"reduct-go/httpclient"
 	"reduct-go/model"
-	"time"
 )
 
 var defaultClientTimeout = 60 * time.Second
 
-// this is a client for a ReductStore instance
+// this is a client for a ReductStore instance.
 type Client interface {
 	// Create a new bucket
 	CreateBucket(ctx context.Context, name string, settings model.BucketSetting) (Bucket, error)
@@ -27,16 +28,16 @@ type Client interface {
 }
 
 type ClientOptions struct {
-	ApiToken  string
+	APIToken  string
 	Timeout   time.Duration
 	VerifySSL bool
 }
 type ReductClient struct {
 	url      string
 	timeout  time.Duration
-	ApiToken string
+	APIToken string
 	// this is a custom http client
-	HttpClient httpclient.HTTPClient
+	HTTPClient httpclient.HTTPClient
 }
 
 func NewClient(url string, options ClientOptions) Client {
@@ -46,40 +47,38 @@ func NewClient(url string, options ClientOptions) Client {
 	client := &ReductClient{
 		url:      url,
 		timeout:  options.Timeout,
-		ApiToken: options.ApiToken,
+		APIToken: options.APIToken,
 	}
-	client.HttpClient = httpclient.NewHTTPClient(httpclient.HttpClientOption{
-		ApiToken: options.ApiToken,
+	client.HTTPClient = httpclient.NewHTTPClient(httpclient.Option{
+		APIToken: options.APIToken,
 		Timeout:  options.Timeout,
-		BaseUrl:  url,
+		BaseURL:  url,
 	})
 
 	return client
 }
 
 func (c *ReductClient) GetBucket(ctx context.Context, name string) (Bucket, error) {
-
-	err := c.HttpClient.Get(ctx, fmt.Sprintf(`/b/%s`, name), nil)
+	err := c.HTTPClient.Get(ctx, fmt.Sprintf(`/b/%s`, name), nil)
 	if err != nil {
 		return Bucket{}, model.APIError{Message: err.Error(), Original: err}
 	}
-	return NewBucket(name, c.HttpClient), nil
+	return NewBucket(name, c.HTTPClient), nil
 }
 
 func (c *ReductClient) CreateBucket(ctx context.Context, name string, settings model.BucketSetting) (Bucket, error) {
-
-	err := c.HttpClient.Post(ctx, fmt.Sprintf("/b/%s", name), settings, nil)
+	err := c.HTTPClient.Post(ctx, fmt.Sprintf("/b/%s", name), settings, nil)
 	if err != nil {
 		return Bucket{}, err
 	}
 
-	return NewBucket(name, c.HttpClient), err
+	return NewBucket(name, c.HTTPClient), err
 }
-func (c *ReductClient) CreateOrGetBucket(ctx context.Context, name string, settings model.BucketSetting) (Bucket, error) {
 
-	err := c.HttpClient.Post(ctx, fmt.Sprintf("/b/%s", name), settings, nil)
+func (c *ReductClient) CreateOrGetBucket(ctx context.Context, name string, settings model.BucketSetting) (Bucket, error) {
+	err := c.HTTPClient.Post(ctx, fmt.Sprintf("/b/%s", name), settings, nil)
 	if err != nil {
-		if apiErr, ok := err.(*model.APIError); ok {
+		if apiErr, ok := err.(*model.APIError); ok { //nolint:errorlint //error.As does not give access to status check
 			if apiErr.Status == 409 {
 				return c.GetBucket(ctx, name)
 			}
@@ -88,12 +87,11 @@ func (c *ReductClient) CreateOrGetBucket(ctx context.Context, name string, setti
 		}
 	}
 
-	return NewBucket(name, c.HttpClient), err
+	return NewBucket(name, c.HTTPClient), err
 }
 
 func (c *ReductClient) CheckBucketExists(ctx context.Context, name string) (bool, error) {
-
-	err := c.HttpClient.Head(ctx, fmt.Sprintf(`/b/%s`, name))
+	err := c.HTTPClient.Head(ctx, fmt.Sprintf(`/b/%s`, name))
 	if err != nil {
 		return false, err
 	}
@@ -101,7 +99,5 @@ func (c *ReductClient) CheckBucketExists(ctx context.Context, name string) (bool
 }
 
 func (c *ReductClient) RemoveBucket(ctx context.Context, name string) error {
-
-	return c.HttpClient.Delete(ctx, fmt.Sprintf(`/b/%s`, name))
-
+	return c.HTTPClient.Delete(ctx, fmt.Sprintf(`/b/%s`, name))
 }

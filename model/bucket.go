@@ -5,7 +5,7 @@ package model
 
 import "encoding/json"
 
-// Represents bucket settings
+// Represents bucket settings.
 type BucketSetting struct {
 	// max block content_length in bytes
 	MaxBlockSize int64 `json:"max_block_size,omitempty"`
@@ -17,7 +17,7 @@ type BucketSetting struct {
 	QuotaSize int64 `json:"quota_size,omitempty"`
 }
 
-// MarshalJSON is the custom marshaller for serializing BucketSetting object
+// MarshalJSON is the custom marshaller for serializing BucketSetting object.
 func (b BucketSetting) MarshalJSON() ([]byte, error) {
 	tmp := make(map[string]any)
 
@@ -45,33 +45,33 @@ func NewBucketSettingBuilder() *BucketSettingBuilder {
 	return &BucketSettingBuilder{}
 }
 
-// WithMaxBlockSize
+// WithMaxBlockSize sets MaxBlockSize value of the builder.
 func (b *BucketSettingBuilder) WithMaxBlockSize(size int64) *BucketSettingBuilder {
 	b.bucket.MaxBlockSize = size
 	return b
 }
 
-// WithMaxBlockRecords sets MaxBlockRecords value of the builder
+// WithMaxBlockRecords sets MaxBlockRecords value of the builder.
 func (b *BucketSettingBuilder) WithMaxBlockRecords(records int64) *BucketSettingBuilder {
 	b.bucket.MaxBlockRecords = records
 	return b
 }
 
-// WithQuotaSize sets QuotaSize value of the builder
+// WithQuotaSize sets QuotaSize value of the builder.
 func (b *BucketSettingBuilder) WithQuotaSize(size int64) *BucketSettingBuilder {
 	b.bucket.QuotaSize = size
 	return b
 }
 
-// WithQuotaType sets the QuotaType value of the builder
-// options are ["NONE","FIFO", "HARD"]
+// WithQuotaType sets the QuotaType value of the builder.
+// options are ["NONE","FIFO", "HARD"].
 func (b *BucketSettingBuilder) WithQuotaType(qt QuotaType) *BucketSettingBuilder {
 	b.bucket.QuotaType = qt
 	return b
 }
 
-// Builds BucketSetting model
-// Uses ["NONE"] QotaType if not set
+// Builds BucketSetting model.
+// Uses ["NONE"] QotaType if not set.
 func (b *BucketSettingBuilder) Build() BucketSetting {
 	if b.bucket.QuotaType == "" {
 		b.bucket.QuotaType = QuotaTypeNone
@@ -87,7 +87,7 @@ const (
 	QuotaTypeHard QuotaType = "HARD"
 )
 
-// Represents information about a bucket
+// Represents information about a bucket.
 type BucketInfo struct {
 	// bucket name
 	Name string `json:"name"`
@@ -103,7 +103,7 @@ type BucketInfo struct {
 	IsProvisioned bool `json:"is_provisioned"`
 }
 
-// Information about the bucket in JSON format
+// Information about the bucket in JSON format.
 type FullBucketDetail struct {
 	// bucket settings
 	Settings BucketSetting `json:"settings"`

@@ -2,8 +2,9 @@ package tests
 
 import (
 	"context"
-	"reduct-go/model"
 	"testing"
+
+	"reduct-go/model"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -35,6 +36,7 @@ func TestBucketExists(t *testing.T) {
 	assert.NoError(t, err)
 	assert.True(t, exists)
 }
+
 func TestRemoveBucket(t *testing.T) {
 	// check if the bucket exists
 	err := mainTestBucket.Remove(context.Background())

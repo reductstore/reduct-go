@@ -2,13 +2,14 @@ package tests
 
 import (
 	"context"
-	"reduct-go/model"
 	"testing"
+
+	"reduct-go/model"
 
 	"github.com/stretchr/testify/assert"
 )
 
-var serverUrl = "http://localhost:8383"
+var serverURL = "http://localhost:8383"
 
 func TestCreateOrGetBucket_Success(t *testing.T) {
 	settings := model.NewBucketSettingBuilder().
@@ -20,11 +21,11 @@ func TestCreateOrGetBucket_Success(t *testing.T) {
 	assert.Equal(t, bucket.Name, mainTestBucket.Name)
 }
 
-// Creating a new bucket should succeed
+// Creating a new bucket should succeed.
 func TestCreateBucket_Success(t *testing.T) {
 	ctx := context.Background()
 
-	var newBucketName = getRandomBucketName()
+	newBucketName := getRandomBucketName()
 	settings := model.NewBucketSettingBuilder().
 		WithQuotaSize(1024 * 1024 * 1024).
 		WithQuotaType(model.QuotaTypeFifo).
@@ -38,7 +39,7 @@ func TestCreateBucket_Success(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-// Creating an existing bucket should fail
+// Creating an existing bucket should fail.
 func TestCreateBucket_Fail(t *testing.T) {
 	ctx := context.Background()
 	settings := model.NewBucketSettingBuilder().

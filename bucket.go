@@ -3,24 +3,25 @@ package reductgo
 import (
 	"context"
 	"fmt"
+
 	"reduct-go/httpclient"
 	"reduct-go/model"
 )
 
 type Bucket struct {
-	HttpClient httpclient.HTTPClient
+	HTTPClient httpclient.HTTPClient
 	Name       string
 }
 
 func NewBucket(name string, httpClient httpclient.HTTPClient) Bucket {
 	return Bucket{
-		HttpClient: httpClient,
+		HTTPClient: httpClient,
 		Name:       name,
 	}
 }
 
 func (b *Bucket) CheckExists(ctx context.Context) (bool, error) {
-	err := b.HttpClient.Head(ctx, fmt.Sprintf("/b/%s", b.Name))
+	err := b.HTTPClient.Head(ctx, fmt.Sprintf("/b/%s", b.Name))
 	if err != nil {
 		return false, err
 	}
@@ -29,7 +30,7 @@ func (b *Bucket) CheckExists(ctx context.Context) (bool, error) {
 
 func (b *Bucket) GetInfo(ctx context.Context) (model.BucketInfo, error) {
 	resp := &model.FullBucketDetail{}
-	err := b.HttpClient.Get(ctx, fmt.Sprintf("/b/%s", b.Name), resp)
+	err := b.HTTPClient.Get(ctx, fmt.Sprintf("/b/%s", b.Name), resp)
 	if err != nil {
 		return model.BucketInfo{}, err
 	}
@@ -38,7 +39,7 @@ func (b *Bucket) GetInfo(ctx context.Context) (model.BucketInfo, error) {
 
 func (b *Bucket) GetSettings(ctx context.Context) (model.BucketSetting, error) {
 	resp := &model.FullBucketDetail{}
-	err := b.HttpClient.Get(ctx, fmt.Sprintf("/b/%s", b.Name), resp)
+	err := b.HTTPClient.Get(ctx, fmt.Sprintf("/b/%s", b.Name), resp)
 	if err != nil {
 		return model.BucketSetting{}, err
 	}
@@ -46,7 +47,7 @@ func (b *Bucket) GetSettings(ctx context.Context) (model.BucketSetting, error) {
 }
 
 func (b *Bucket) SetSettings(ctx context.Context, settings model.BucketSetting) error {
-	err := b.HttpClient.Put(ctx, fmt.Sprintf("/b/%s", b.Name), settings, nil)
+	err := b.HTTPClient.Put(ctx, fmt.Sprintf("/b/%s", b.Name), settings, nil)
 	if err != nil {
 		return err
 	}
@@ -54,15 +55,16 @@ func (b *Bucket) SetSettings(ctx context.Context, settings model.BucketSetting) 
 }
 
 func (b *Bucket) Rename(ctx context.Context, newName string) error {
-	err := b.HttpClient.Put(ctx, fmt.Sprintf("/b/%s/rename", b.Name), map[string]string{"new_name": newName}, nil)
+	err := b.HTTPClient.Put(ctx, fmt.Sprintf("/b/%s/rename", b.Name), map[string]string{"new_name": newName}, nil)
 	if err != nil {
 		return err
 	}
 	b.Name = newName
 	return nil
 }
+
 func (b *Bucket) Remove(ctx context.Context) error {
-	err := b.HttpClient.Delete(ctx, fmt.Sprintf("/b/%s", b.Name))
+	err := b.HTTPClient.Delete(ctx, fmt.Sprintf("/b/%s", b.Name))
 	if err != nil {
 		return err
 	}

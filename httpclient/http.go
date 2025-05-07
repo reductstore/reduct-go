@@ -7,8 +7,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"reduct-go/model"
 	"time"
+
+	"reduct-go/model"
 )
 
 const (
@@ -23,9 +24,9 @@ type HTTPClient interface {
 	Delete(ctx context.Context, path string) error
 }
 
-type HttpClientOption struct {
-	BaseUrl   string
-	ApiToken  string
+type Option struct {
+	BaseURL   string
+	APIToken  string
 	Timeout   time.Duration
 	VerifySSL bool
 }
@@ -36,13 +37,13 @@ type httpClient struct {
 	url      string
 }
 
-func NewHTTPClient(option HttpClientOption) HTTPClient {
+func NewHTTPClient(option Option) HTTPClient {
 	return &httpClient{
 		client: &http.Client{
 			Timeout: option.Timeout,
 		},
-		url:      fmt.Sprintf("%s/api/%s", option.BaseUrl, APIVersion),
-		apiToken: option.ApiToken,
+		url:      fmt.Sprintf("%s/api/%s", option.BaseURL, APIVersion),
+		apiToken: option.APIToken,
 	}
 }
 
@@ -127,6 +128,7 @@ func (c *httpClient) Put(ctx context.Context, path string, requestBody, response
 	}
 	return nil
 }
+
 func (c *httpClient) Post(ctx context.Context, path string, requestBody, responseData any) error {
 	if c.client == nil {
 		return &model.APIError{
@@ -180,14 +182,16 @@ func (c *httpClient) Post(ctx context.Context, path string, requestBody, respons
 		return &model.APIError{
 			Message:  reductError,
 			Original: err,
-			Status:   resp.StatusCode}
+			Status:   resp.StatusCode,
+		}
 	}
 	// Check for non-OK status codes
 	if resp.StatusCode != http.StatusOK {
 		return &model.APIError{
 			Message:  reductError,
 			Original: err,
-			Status:   resp.StatusCode}
+			Status:   resp.StatusCode,
+		}
 	}
 	if responseData != nil && len(bodyBytes) > 0 {
 		// Unmarshal the response into the provided responseData interface
@@ -209,7 +213,7 @@ func (c *httpClient) Get(ctx context.Context, path string, responseData any) err
 	}
 
 	// Create a new HTTP request
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.url+path, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.url+path, http.NoBody)
 	if err != nil {
 		return &model.APIError{Original: err}
 	}
@@ -269,7 +273,7 @@ func (c *httpClient) Head(ctx context.Context, path string) error {
 	}
 
 	// Create a new HTTP request
-	req, err := http.NewRequestWithContext(ctx, http.MethodHead, c.url+path, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodHead, c.url+path, http.NoBody)
 	if err != nil {
 		return &model.APIError{Original: err}
 	}
@@ -309,7 +313,7 @@ func (c *httpClient) Delete(ctx context.Context, path string) error {
 	}
 
 	// Create a new HTTP request
-	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, c.url+path, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, c.url+path, http.NoBody)
 	if err != nil {
 		return &model.APIError{Original: err}
 	}
