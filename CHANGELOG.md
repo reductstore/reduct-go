@@ -9,19 +9,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 * Set up project and CI/CD GitHub actions, [PR-9](https://github.com/reductstore/reduct-go/pull/9)
-## Added Bucket api [PR-10](https://github.com/reductstore/reduct-go/pull/10)
-* Github Actions workflow
-* Handle X-Reduct-error on http client
-* Added client methods 
-    - CreateBucket 
-    - CreateOrGetBucket
-    - GetBucket
-    - CheckBucketExists
-    - RemoveBucket
-* Added bucket methods 
-    - CheckExists
-    - GetInfo
-    - GetSettings
-    - SetSettings
-    - Rename
-    - Remove
+* Implement Bucket API [PR-10](https://github.com/reductstore/reduct-go/pull/10)
