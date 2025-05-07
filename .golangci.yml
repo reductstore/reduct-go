@@ -136,17 +136,7 @@ linters:
     paths:
       - vendor$
       - tests$
-exclude-rules:
-  - path: .*_test\.go$
-    linters:
-      - errcheck
-      - revive
-    formatters:
 
-linters-settings:
-  errcheck:
-    exclude-files:
-      - "^tests/.*_test.go"
 issues:
   max-issues-per-linter: 0
   max-same-issues: 0
