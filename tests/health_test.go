@@ -8,9 +8,9 @@ import (
 )
 
 func TestReductStoreHealth(t *testing.T) {
-	healthUrl := "http://127.0.0.1:8383/api/v1/alive"
+	healthURL := "http://127.0.0.1:8383/api/v1/alive"
 
-	req, err := http.NewRequest(http.MethodHead, healthUrl, nil)
+	req, err := http.NewRequest(http.MethodHead, healthURL, http.NoBody)
 	assert.NoError(t, err)
 
 	req.Header.Set("Content-Type", "application/json")
@@ -24,5 +24,4 @@ func TestReductStoreHealth(t *testing.T) {
 	}()
 
 	assert.Equal(t, resp.StatusCode, http.StatusOK)
-
 }

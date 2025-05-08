@@ -8,5 +8,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-* 
 * Set up project and CI/CD GitHub actions, [PR-9](https://github.com/reductstore/reduct-go/pull/9)
+* Implement Bucket API [PR-10](https://github.com/reductstore/reduct-go/pull/10)
