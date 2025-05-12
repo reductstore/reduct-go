@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"net/http"
 	"reduct-go/httpclient"
 	"reduct-go/model"
 	"strconv"
@@ -58,9 +57,9 @@ func (w *writableRecord) Write(data any, size int64) error {
 		return fmt.Errorf("unsupported data type")
 	}
 
-	url := fmt.Sprintf("%s/b/%s/%s?ts=%d", w.httpClient.GetBaseURL(), w.bucketName, w.entryName, w.options.Timestamp)
+	url := fmt.Sprintf("/b/%s/%s?ts=%d", w.bucketName, w.entryName, w.options.Timestamp)
 
-	req, err := http.NewRequest("POST", url, reader)
+	req, err := w.httpClient.NewRequest("POST", url, reader)
 	if err != nil {
 		return err
 	}

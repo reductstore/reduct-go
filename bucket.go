@@ -88,27 +88,27 @@ func (b *Bucket) Remove(ctx context.Context) error {
 // It returns a readableRecord or an error if the read fails.
 //
 // Use readableRecord.Read() to read the content of the reader
-func (b *Bucket) BeginRead(ctx context.Context, entry, ts, id string, head bool) (*readableRecord, error) {
+func (b *Bucket) BeginRead(ctx context.Context, entry string, ts, id *string, head bool) (*readableRecord, error) {
 	return b.readRecord(ctx, entry, ts, id, head)
 }
 
 // readRecord prepares an entry record reader from the reductstore server
-func (b *Bucket) readRecord(ctx context.Context, entry, ts, id string, head bool) (*readableRecord, error) {
+func (b *Bucket) readRecord(ctx context.Context, entry string, ts, id *string, head bool) (*readableRecord, error) {
 	query := url.Values{}
-	if ts != "" {
-		query.Set("ts", ts)
+	if ts != nil {
+		query.Set("ts", *ts)
 	}
-	if id != "" {
-		query.Set("q", id)
+	if id != nil {
+		query.Set("q", *id)
 	}
-	endpoint := fmt.Sprintf("%s/b/%s/%s?%s", b.HTTPClient.GetBaseURL(), b.Name, entry, query.Encode())
+	path := fmt.Sprintf("/b/%s/%s?%s", b.Name, entry, query.Encode())
 
 	var req *http.Request
 	var err error
 	if head {
-		req, err = http.NewRequestWithContext(ctx, http.MethodHead, endpoint, nil)
+		req, err = b.HTTPClient.NewRequestWithContext(ctx, http.MethodHead, path, nil)
 	} else {
-		req, err = http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+		req, err = b.HTTPClient.NewRequestWithContext(ctx, http.MethodGet, path, nil)
 	}
 	if err != nil {
 		return nil, err
@@ -148,7 +148,7 @@ func (b *Bucket) readRecord(ctx context.Context, entry, ts, id string, head bool
 
 }
 
-func (b *Bucket) BeginWrite(ctx context.Context, entry string, options *WriteOptions) *writableRecord {
+func (b *Bucket) BeginWrite(entry string, options *WriteOptions) *writableRecord {
 	var localOptions = WriteOptions{Timestamp: 0}
 	if options != nil {
 		localOptions = *options
