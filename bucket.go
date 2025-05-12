@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"reduct-go/httpclient"
 	"reduct-go/model"
@@ -122,12 +123,12 @@ func (b *Bucket) readRecord(ctx context.Context, entry, ts, id string, head bool
 		return nil, err
 	}
 
+	errorMessage := resp.Header.Get("x-reduct-error")
 	if resp.StatusCode == 204 {
-		message := resp.Header.Get("x-reduct-error")
-		if message == "" {
-			message = "No content"
+		if errorMessage == "" {
+			errorMessage = "No content"
 		}
-		return nil, model.APIError{Status: 204, Message: message}
+		return nil, model.APIError{Status: 204, Message: errorMessage}
 	}
 	timeStr := resp.Header.Get("x-reduct-time")
 	sizeStr := resp.Header.Get("content-length")
@@ -145,4 +146,16 @@ func (b *Bucket) readRecord(ctx context.Context, entry, ts, id string, head bool
 	record := NewReadableRecord(timeVal, sizeVal, last, head, resp.Body, labels, resp.Header.Get("Content-Type"))
 	return record, nil
 
+}
+
+func (b *Bucket) BeginWrite(ctx context.Context, entry string, options *WriteOptions) *writableRecord {
+	var localOptions = WriteOptions{Timestamp: 0}
+	if options != nil {
+		localOptions = *options
+	}
+	if localOptions.Timestamp == 0 {
+		// NOTE: time.Now() would give time on the callers server/machine timezone
+		localOptions.Timestamp = uint64(time.Now().UnixMicro())
+	}
+	return NewWritableRecord(b.Name, entry, b.HTTPClient, localOptions)
 }
