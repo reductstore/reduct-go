@@ -148,6 +148,14 @@ func (b *Bucket) readRecord(ctx context.Context, entry string, ts, id *string, h
 
 }
 
+// BeginWrite starts a record writer for an entry
+//
+// Parameters:
+//   - entry the name of the entry to write the record to.
+//   - options:
+//   - TimeStamp: timestamp in microseconds, it is set to current time if not provided
+//   - ContentType: "text/plain"
+//   - Labels: record label kev:value pairs  {label1: "value1", label2: "value2"}
 func (b *Bucket) BeginWrite(entry string, options *WriteOptions) *writableRecord {
 	var localOptions = WriteOptions{Timestamp: 0}
 	if options != nil {
