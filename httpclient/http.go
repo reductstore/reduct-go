@@ -23,7 +23,8 @@ type HTTPClient interface {
 	Head(ctx context.Context, path string) error
 	Delete(ctx context.Context, path string) error
 	Do(req *http.Request) (*http.Response, error)
-	GetBaseURL() string
+	NewRequest(method, path string, body io.Reader) (*http.Request, error)
+	NewRequestWithContext(ctx context.Context, method, path string, body io.Reader) (*http.Request, error)
 }
 
 type Option struct {
@@ -48,10 +49,14 @@ func NewHTTPClient(option Option) HTTPClient {
 		apiToken: option.APIToken,
 	}
 }
-func (c *httpClient) GetBaseURL() string {
-	return c.url
+
+func (c *httpClient) NewRequest(method, path string, body io.Reader) (*http.Request, error) {
+	return http.NewRequest(method, c.url+path, body)
 }
 
+func (c *httpClient) NewRequestWithContext(ctx context.Context, method, path string, body io.Reader) (*http.Request, error) {
+	return http.NewRequestWithContext(ctx, method, c.url+path, body)
+}
 func (c *httpClient) setClientHeaders(req *http.Request) {
 	req.Header.Set("Authorization", "Bearer "+c.apiToken)
 	req.Header.Set("Content-Type", "application/json")
