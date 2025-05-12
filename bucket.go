@@ -3,6 +3,10 @@ package reductgo
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"net/url"
+	"strconv"
+	"strings"
 
 	"reduct-go/httpclient"
 	"reduct-go/model"
@@ -69,4 +73,76 @@ func (b *Bucket) Remove(ctx context.Context) error {
 		return err
 	}
 	return nil
+}
+
+// BeginRead starts reading a record from the given entry at the specified timestamp.
+//
+// Parameters:
+//   - ctx: Context for cancellation and timeout control.
+//   - entry: Name of the entry to read from.
+//   - ts: Optional A UNIX timestamp in microseconds. If it is empty, the latest record is returned.
+//   - id: Optional A query ID to read the next record in the query. If it is set, the parameter ts is ignored.
+//   - head: If true, performs a HEAD request to fetch metadata only.
+//
+// It returns a readableRecord or an error if the read fails.
+//
+// Use readableRecord.Read() to read the content of the reader
+func (b *Bucket) BeginRead(ctx context.Context, entry, ts, id string, head bool) (*readableRecord, error) {
+	return b.readRecord(ctx, entry, ts, id, head)
+}
+
+// readRecord prepares an entry record reader from the reductstore server
+func (b *Bucket) readRecord(ctx context.Context, entry, ts, id string, head bool) (*readableRecord, error) {
+	query := url.Values{}
+	if ts != "" {
+		query.Set("ts", ts)
+	}
+	if id != "" {
+		query.Set("q", id)
+	}
+	endpoint := fmt.Sprintf("%s/b/%s/%s?%s", b.HTTPClient.GetBaseURL(), b.Name, entry, query.Encode())
+
+	var req *http.Request
+	var err error
+	if head {
+		req, err = http.NewRequestWithContext(ctx, http.MethodHead, endpoint, nil)
+	} else {
+		req, err = http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	if !head {
+		req.Header.Set("Accept", "application/octet-stream")
+	}
+
+	resp, err := b.HTTPClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode == 204 {
+		message := resp.Header.Get("x-reduct-error")
+		if message == "" {
+			message = "No content"
+		}
+		return nil, model.APIError{Status: 204, Message: message}
+	}
+	timeStr := resp.Header.Get("x-reduct-time")
+	sizeStr := resp.Header.Get("content-length")
+	last := resp.Header.Get("x-reduct-last") == "1"
+
+	labels := make(map[string]any)
+	for key, values := range resp.Header {
+		if strings.HasPrefix(key, "x-reduct-label-") {
+			labels[strings.TrimPrefix(key, "x-reduct-label-")] = values[0]
+		}
+	}
+
+	timeVal, _ := strconv.ParseUint(timeStr, 10, 64)
+	sizeVal, _ := strconv.ParseUint(sizeStr, 10, 64)
+	record := NewReadableRecord(timeVal, sizeVal, last, head, resp.Body, labels, resp.Header.Get("Content-Type"))
+	return record, nil
+
 }

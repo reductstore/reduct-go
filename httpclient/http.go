@@ -22,6 +22,8 @@ type HTTPClient interface {
 	Get(ctx context.Context, path string, responseData any) error
 	Head(ctx context.Context, path string) error
 	Delete(ctx context.Context, path string) error
+	Do(req *http.Request) (*http.Response, error)
+	GetBaseURL() string
 }
 
 type Option struct {
@@ -45,6 +47,9 @@ func NewHTTPClient(option Option) HTTPClient {
 		url:      fmt.Sprintf("%s/api/%s", option.BaseURL, APIVersion),
 		apiToken: option.APIToken,
 	}
+}
+func (c *httpClient) GetBaseURL() string {
+	return c.url
 }
 
 func (c *httpClient) setClientHeaders(req *http.Request) {
@@ -346,4 +351,11 @@ func (c *httpClient) Delete(ctx context.Context, path string) error {
 	}
 
 	return nil
+}
+
+func (c *httpClient) Do(req *http.Request) (*http.Response, error) {
+	// set reques headers
+	c.setClientHeaders(req)
+	// Create an HTTP client and perform the Do
+	return c.client.Do(req)
 }
