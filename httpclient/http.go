@@ -357,5 +357,22 @@ func (c *httpClient) Do(req *http.Request) (*http.Response, error) {
 	// set reques headers
 	c.setClientHeaders(req)
 	// Create an HTTP client and perform the Do
-	return c.client.Do(req)
+	resp, err := c.client.Do(req)
+	reductError := resp.Header.Get("X-Reduct-Error")
+
+	if err != nil {
+		return resp, &model.APIError{
+			Message:  reductError,
+			Original: err,
+			Status:   resp.StatusCode,
+		}
+	}
+
+	if resp.StatusCode >= 300 {
+		return resp, model.APIError{
+			Status:  resp.StatusCode,
+			Message: "invalid http response status",
+		}
+	}
+	return resp, nil
 }
