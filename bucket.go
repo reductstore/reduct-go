@@ -128,6 +128,11 @@ func (b *Bucket) readRecord(ctx context.Context, entry string, ts *string, head 
 		}
 		return nil, model.APIError{Status: 204, Message: errorMessage}
 	}
+	// check there is data in the response
+	if resp.ContentLength == 0 || resp.Body == nil {
+		return nil, model.APIError{Status: 204, Message: "No content"}
+	}
+
 	timeStr := resp.Header.Get("x-reduct-time")
 	sizeStr := resp.Header.Get("content-length")
 	last := resp.Header.Get("x-reduct-last") == "1"
@@ -161,6 +166,9 @@ func (b *Bucket) BeginWrite(entry string, options *WriteOptions) *writableRecord
 	}
 	if localOptions.Timestamp == 0 {
 		localOptions.Timestamp = uint64(time.Now().UTC().UnixMicro())
+	}
+	if localOptions.ContentType == "" {
+		localOptions.ContentType = "application/octet-stream"
 	}
 	return NewWritableRecord(b.Name, entry, b.HTTPClient, localOptions)
 }

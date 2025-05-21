@@ -3,6 +3,7 @@ package tests
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"testing"
 
 	"reduct-go/model"
@@ -77,91 +78,39 @@ func TestEntryRecordWriterAndReader(t *testing.T) {
 	assert.Equal(t, data, readDataMap)
 }
 
-// func TestEntryRecordStreamWriterAndReader(t *testing.T) {
-// 	exists, err := mainTestBucket.CheckExists(context.Background())
-// 	assert.NoError(t, err)
-// 	assert.True(t, exists)
+func TestEntryRecordStreamWriterAndChunkedReader(t *testing.T) {
+	exists, err := mainTestBucket.CheckExists(context.Background())
+	assert.NoError(t, err)
+	assert.True(t, exists)
 
-// 	// Begin writing to entry using stream
-// 	writer := mainTestBucket.BeginWrite("entry-stream", nil)
+	// Begin writing to entry using stream
+	writer := mainTestBucket.BeginWrite("entry-stream-chunked", nil)
 
-// 	streamWriter := writer.Stream()
+	chunks := []byte(`{"part": "one","more": 123,"nested": {"inner": "value"}}`)
 
-// 	chunks := [][]byte{
-// 		[]byte(`{"part": "one",`),
-// 		[]byte(`"more": 123,`),
-// 		[]byte(`"nested": {"inner": "value"}}`),
-// 	}
+	err = writer.Write(chunks, int64(len(chunks)))
+	assert.NoError(t, err)
 
-// 	// Write each chunk into the stream
-// 	for _, chunk := range chunks {
-// 		n, err := streamWriter.Write(chunk)
-// 		assert.NoError(t, err)
-// 		assert.Equal(t, len(chunk), n)
-// 	}
+	// Begin reading with streaming reader
+	reader, err := mainTestBucket.BeginRead(context.Background(), "entry-stream-chunked", nil, false)
+	assert.NoError(t, err)
 
-// 	// Close the stream if needed (e.g., flush or finalize)
-// 	err = writer.Close()
-// 	assert.NoError(t, err)
+	// Stream read in chunks (e.g., 16 bytes at a time)
+	streamReader := reader.Stream()
+	buf := make([]byte, 16)
+	var result []byte
 
-// 	// Begin reading from entry as stream
-// 	reader, err := mainTestBucket.BeginRead(context.Background(), "entry-stream", nil, nil, false)
-// 	assert.NoError(t, err)
+	for {
+		n, err := streamReader.Read(buf)
+		if n > 0 {
+			result = append(result, buf[:n]...)
+		}
+		if err == io.EOF {
+			break
+		}
+		assert.NoError(t, err)
+	}
 
-// 	// Read all into buffer (simulate streaming)
-// 	err = reader.Read()
-// 	assert.NoError(t, err)
-
-// 	// Validate content matches what was written
-// 	expectedJSON := `{"part": "one","more": 123,"nested": {"inner": "value"}}`
-// 	assert.JSONEq(t, expectedJSON, reader.Buffer.String())
-// }
-
-// func TestEntryRecordStreamWriterAndChunkedReader(t *testing.T) {
-// 	exists, err := mainTestBucket.CheckExists(context.Background())
-// 	assert.NoError(t, err)
-// 	assert.True(t, exists)
-
-// 	// Begin writing to entry using stream
-// 	writer := mainTestBucket.BeginWrite("entry-stream-chunked", nil)
-
-// 	streamWriter := writer.Stream()
-
-// 	chunks := [][]byte{
-// 		[]byte(`{"part": "one",`),
-// 		[]byte(`"more": 123,`),
-// 		[]byte(`"nested": {"inner": "value"}}`),
-// 	}
-
-// 	for _, chunk := range chunks {
-// 		n, err := streamWriter.Write(chunk)
-// 		assert.NoError(t, err)
-// 		assert.Equal(t, len(chunk), n)
-// 	}
-
-// 	err = writer.Close()
-// 	assert.NoError(t, err)
-
-// 	// Begin reading with streaming reader
-// 	reader, err := mainTestBucket.BeginRead(context.Background(), "entry-stream-chunked", nil, nil, false)
-// 	assert.NoError(t, err)
-
-// 	// Stream read in chunks (e.g., 16 bytes at a time)
-// 	streamReader := reader.Stream()
-// 	buf := make([]byte, 16)
-// 	var result []byte
-
-// 	for {
-// 		n, err := streamReader.Read(buf)
-// 		if n > 0 {
-// 			result = append(result, buf[:n]...)
-// 		}
-// 		if err == io.EOF {
-// 			break
-// 		}
-// 		assert.NoError(t, err)
-// 	}
-
-// 	expectedJSON := `{"part": "one","more": 123,"nested": {"inner": "value"}}`
-// 	assert.JSONEq(t, expectedJSON, string(result))
-// }
+	expectedJSON := `{"part": "one","more": 123,"nested": {"inner": "value"}}`
+	assert.JSONEq(t, expectedJSON, string(result))
+}

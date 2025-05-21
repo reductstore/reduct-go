@@ -35,6 +35,9 @@ func (w *writableRecord) Write(data any, size int64) error {
 	if w.options.Timestamp == 0 {
 		return fmt.Errorf("timestamp must be set")
 	}
+	if data == nil {
+		return fmt.Errorf("no data to write")
+	}
 
 	var reader io.Reader
 	var contentLength int64
