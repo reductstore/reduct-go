@@ -44,13 +44,13 @@ func TestRemoveBucket(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestEntryRecordWritterAndReader(t *testing.T) {
+func TestEntryRecordWriterAndReader(t *testing.T) {
 	exists, err := mainTestBucket.CheckExists(context.Background())
 	assert.NoError(t, err)
 	assert.True(t, exists)
 
-	// create a new entry record writter
-	writter := mainTestBucket.BeginWrite("entry-1", nil)
+	// create a new entry record writer
+	writer := mainTestBucket.BeginWrite("entry-1", nil)
 	data := map[string]any{
 		"key1": "value1",
 		"key2": float64(2),
@@ -61,18 +61,107 @@ func TestEntryRecordWritterAndReader(t *testing.T) {
 	}
 	dataByte, err := json.Marshal(data)
 	assert.NoError(t, err)
-	err = writter.Write(dataByte, int64(len(dataByte)))
+	err = writer.Write(dataByte, int64(len(dataByte)))
 	assert.NoError(t, err)
 	// we should be able to read the written data
-	reader, err := mainTestBucket.BeginRead(context.Background(), "entry-1", nil, nil, false)
+	reader, err := mainTestBucket.BeginRead(context.Background(), "entry-1", nil, false)
 	assert.NoError(t, err)
 	// read the data
-	readData, err := reader.Read()
+	resp, err := reader.Read()
 	assert.NoError(t, err)
 	// check if the data is the same
 	var readDataMap map[string]any
-	err = json.Unmarshal(readData, &readDataMap)
+	err = json.Unmarshal(resp, &readDataMap)
 	assert.NoError(t, err)
 	// check if the data is the same
 	assert.Equal(t, data, readDataMap)
 }
+
+// func TestEntryRecordStreamWriterAndReader(t *testing.T) {
+// 	exists, err := mainTestBucket.CheckExists(context.Background())
+// 	assert.NoError(t, err)
+// 	assert.True(t, exists)
+
+// 	// Begin writing to entry using stream
+// 	writer := mainTestBucket.BeginWrite("entry-stream", nil)
+
+// 	streamWriter := writer.Stream()
+
+// 	chunks := [][]byte{
+// 		[]byte(`{"part": "one",`),
+// 		[]byte(`"more": 123,`),
+// 		[]byte(`"nested": {"inner": "value"}}`),
+// 	}
+
+// 	// Write each chunk into the stream
+// 	for _, chunk := range chunks {
+// 		n, err := streamWriter.Write(chunk)
+// 		assert.NoError(t, err)
+// 		assert.Equal(t, len(chunk), n)
+// 	}
+
+// 	// Close the stream if needed (e.g., flush or finalize)
+// 	err = writer.Close()
+// 	assert.NoError(t, err)
+
+// 	// Begin reading from entry as stream
+// 	reader, err := mainTestBucket.BeginRead(context.Background(), "entry-stream", nil, nil, false)
+// 	assert.NoError(t, err)
+
+// 	// Read all into buffer (simulate streaming)
+// 	err = reader.Read()
+// 	assert.NoError(t, err)
+
+// 	// Validate content matches what was written
+// 	expectedJSON := `{"part": "one","more": 123,"nested": {"inner": "value"}}`
+// 	assert.JSONEq(t, expectedJSON, reader.Buffer.String())
+// }
+
+// func TestEntryRecordStreamWriterAndChunkedReader(t *testing.T) {
+// 	exists, err := mainTestBucket.CheckExists(context.Background())
+// 	assert.NoError(t, err)
+// 	assert.True(t, exists)
+
+// 	// Begin writing to entry using stream
+// 	writer := mainTestBucket.BeginWrite("entry-stream-chunked", nil)
+
+// 	streamWriter := writer.Stream()
+
+// 	chunks := [][]byte{
+// 		[]byte(`{"part": "one",`),
+// 		[]byte(`"more": 123,`),
+// 		[]byte(`"nested": {"inner": "value"}}`),
+// 	}
+
+// 	for _, chunk := range chunks {
+// 		n, err := streamWriter.Write(chunk)
+// 		assert.NoError(t, err)
+// 		assert.Equal(t, len(chunk), n)
+// 	}
+
+// 	err = writer.Close()
+// 	assert.NoError(t, err)
+
+// 	// Begin reading with streaming reader
+// 	reader, err := mainTestBucket.BeginRead(context.Background(), "entry-stream-chunked", nil, nil, false)
+// 	assert.NoError(t, err)
+
+// 	// Stream read in chunks (e.g., 16 bytes at a time)
+// 	streamReader := reader.Stream()
+// 	buf := make([]byte, 16)
+// 	var result []byte
+
+// 	for {
+// 		n, err := streamReader.Read(buf)
+// 		if n > 0 {
+// 			result = append(result, buf[:n]...)
+// 		}
+// 		if err == io.EOF {
+// 			break
+// 		}
+// 		assert.NoError(t, err)
+// 	}
+
+// 	expectedJSON := `{"part": "one","more": 123,"nested": {"inner": "value"}}`
+// 	assert.JSONEq(t, expectedJSON, string(result))
+// }
