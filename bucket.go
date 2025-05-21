@@ -88,19 +88,17 @@ func (b *Bucket) Remove(ctx context.Context) error {
 // It returns a readableRecord or an error if the read fails.
 //
 // Use readableRecord.Read() to read the content of the reader
-func (b *Bucket) BeginRead(ctx context.Context, entry string, ts, id *string, head bool) (*readableRecord, error) {
-	return b.readRecord(ctx, entry, ts, id, head)
+func (b *Bucket) BeginRead(ctx context.Context, entry string, id *string, head bool) (*readableRecord, error) {
+	return b.readRecord(ctx, entry, id, head)
 }
 
 // readRecord prepares an entry record reader from the reductstore server
-func (b *Bucket) readRecord(ctx context.Context, entry string, ts, id *string, head bool) (*readableRecord, error) {
+func (b *Bucket) readRecord(ctx context.Context, entry string, ts *string, head bool) (*readableRecord, error) {
 	query := url.Values{}
 	if ts != nil {
 		query.Set("ts", *ts)
 	}
-	if id != nil {
-		query.Set("q", *id)
-	}
+
 	path := fmt.Sprintf("/b/%s/%s?%s", b.Name, entry, query.Encode())
 
 	var req *http.Request
@@ -162,8 +160,7 @@ func (b *Bucket) BeginWrite(entry string, options *WriteOptions) *writableRecord
 		localOptions = *options
 	}
 	if localOptions.Timestamp == 0 {
-		// NOTE: time.Now() would give time on the callers server/machine timezone
-		localOptions.Timestamp = uint64(time.Now().UnixMicro())
+		localOptions.Timestamp = uint64(time.Now().UTC().UnixMicro())
 	}
 	return NewWritableRecord(b.Name, entry, b.HTTPClient, localOptions)
 }
