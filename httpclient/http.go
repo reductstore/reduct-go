@@ -4,9 +4,12 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
+	"net/url"
 	"time"
 
 	"reduct-go/model"
@@ -14,6 +17,15 @@ import (
 
 const (
 	APIVersion = "v1"
+)
+
+var (
+	InvalidRequest  int = -6 // used for invalid requests
+	Interrupt           = -5 // used for interrupting a long-running task or query
+	UrlParseError       = -4
+	ConnectionError     = -3
+	Timeout             = -2
+	Unknown             = -1
 )
 
 type HTTPClient interface {
@@ -171,15 +183,12 @@ func (c *httpClient) Post(ctx context.Context, path string, requestBody, respons
 	c.setClientHeaders(req)
 	// Create an HTTP client and perform the request
 	resp, err := c.client.Do(req)
-	reductError := resp.Header.Get("X-Reduct-Error")
 
 	if err != nil {
-		return &model.APIError{
-			Message:  reductError,
-			Original: err,
-			Status:   resp.StatusCode,
-		}
+		return handleHTTPError(err)
 	}
+	reductError := resp.Header.Get("X-Reduct-Error")
+
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
 			fmt.Printf("Failed to close response body: %v", err)
@@ -217,6 +226,49 @@ func (c *httpClient) Post(ctx context.Context, path string, requestBody, respons
 	return nil
 }
 
+func handleHTTPError(err error) error {
+	var opErr *net.OpError
+	if errors.As(err, &opErr) {
+		return &model.APIError{
+			Message:  "network error",
+			Original: err,
+			Status:   ConnectionError,
+		}
+	}
+	var urlErr *url.Error
+	if errors.As(err, &urlErr) {
+		return &model.APIError{
+			Message:  "invalid url",
+			Original: err,
+			Status:   UrlParseError,
+		}
+	}
+	if errors.Is(err, http.ErrServerClosed) {
+		return &model.APIError{
+			Message:  "server closed",
+			Original: err,
+			Status:   ConnectionError,
+		}
+	} else if errors.Is(err, context.Canceled) {
+		return &model.APIError{
+			Message:  "request canceled",
+			Original: err,
+			Status:   Interrupt,
+		}
+	} else if errors.Is(err, context.DeadlineExceeded) {
+		return &model.APIError{
+			Message:  "request timed out",
+			Original: err,
+			Status:   Timeout,
+		}
+	}
+	return &model.APIError{
+		Message:  err.Error(),
+		Original: err,
+		Status:   Unknown,
+	}
+}
+
 func (c *httpClient) Get(ctx context.Context, path string, responseData any) error {
 	if c.client == nil {
 		return &model.APIError{Message: "http client is not initialized"}
@@ -231,15 +283,12 @@ func (c *httpClient) Get(ctx context.Context, path string, responseData any) err
 	c.setClientHeaders(req)
 	// Create an HTTP client and perform the request
 	resp, err := c.client.Do(req)
-	reductError := resp.Header.Get("X-Reduct-Error")
 
 	if err != nil {
-		return &model.APIError{
-			Message:  reductError,
-			Original: err,
-			Status:   resp.StatusCode,
-		}
+		return handleHTTPError(err)
 	}
+	reductError := resp.Header.Get("X-Reduct-Error")
+
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
 			fmt.Printf("Failed to close response body: %v", err)
@@ -291,14 +340,12 @@ func (c *httpClient) Head(ctx context.Context, path string) error {
 	c.setClientHeaders(req)
 	// Create an HTTP client and perform the request
 	resp, err := c.client.Do(req)
-	reductError := resp.Header.Get("X-Reduct-Error")
+
 	if err != nil {
-		return &model.APIError{
-			Message:  reductError,
-			Original: err,
-			Status:   resp.StatusCode,
-		}
+		return handleHTTPError(err)
 	}
+	reductError := resp.Header.Get("X-Reduct-Error")
+
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
 			fmt.Printf("Failed to close response body: %v", err)
@@ -331,15 +378,12 @@ func (c *httpClient) Delete(ctx context.Context, path string) error {
 	c.setClientHeaders(req)
 	// Create an HTTP client and perform the request
 	resp, err := c.client.Do(req)
-	reductError := resp.Header.Get("X-Reduct-Error")
 
 	if err != nil {
-		return &model.APIError{
-			Message:  reductError,
-			Original: err,
-			Status:   resp.StatusCode,
-		}
+		return handleHTTPError(err)
 	}
+	reductError := resp.Header.Get("X-Reduct-Error")
+
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
 			fmt.Printf("Failed to close response body: %v", err)
@@ -363,20 +407,16 @@ func (c *httpClient) Do(req *http.Request) (*http.Response, error) {
 	c.setClientHeaders(req)
 	// Create an HTTP client and perform the Do
 	resp, err := c.client.Do(req)
-	reductError := resp.Header.Get("X-Reduct-Error")
 
 	if err != nil {
-		return resp, &model.APIError{
-			Message:  reductError,
-			Original: err,
-			Status:   resp.StatusCode,
-		}
+		return nil, handleHTTPError(err)
 	}
+	reductError := resp.Header.Get("X-Reduct-Error")
 
 	if resp.StatusCode >= 300 {
 		return resp, model.APIError{
 			Status:  resp.StatusCode,
-			Message: "invalid http response status",
+			Message: reductError,
 		}
 	}
 	return resp, nil
