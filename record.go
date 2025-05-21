@@ -12,7 +12,7 @@ import (
 type WriteOptions struct {
 	Timestamp   uint64
 	ContentType string
-	Labels      map[string]any
+	Labels      LabelMap
 }
 
 type writableRecord struct {
