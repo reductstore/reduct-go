@@ -92,18 +92,19 @@ type readableRecord struct {
 	time        uint64
 	size        uint64
 	last        bool
-	head        bool
 	stream      io.Reader
 	labels      map[string]any
 	contentType string
-	buf         *bytes.Buffer
 }
 
-func NewReadableRecord(time uint64, size uint64, last bool, head bool, stream io.Reader, labels map[string]any, contentType string) *readableRecord {
-	var buf *bytes.Buffer
-	if head {
-		buf = bytes.NewBuffer([]byte{})
-	}
+func NewReadableRecord(time uint64,
+	size uint64,
+	last bool,
+	head bool,
+	stream io.Reader,
+	labels map[string]any,
+	contentType string,
+) *readableRecord {
 	if contentType == "" {
 		contentType = "application/octet-stream"
 	}
@@ -111,23 +112,51 @@ func NewReadableRecord(time uint64, size uint64, last bool, head bool, stream io
 		time:        time,
 		size:        size,
 		last:        last,
-		head:        head,
 		stream:      stream,
 		labels:      labels,
 		contentType: contentType,
-		buf:         buf,
 	}
 }
 
 func (r *readableRecord) Read() ([]byte, error) {
-	if r.buf != nil {
-		return r.buf.Bytes(), nil
-	}
 	// read from stream
-	buf := make([]byte, r.size)
-	_, err := io.ReadFull(r.stream, buf)
+	buffer := bytes.NewBuffer([]byte{})
+	_, err := io.ReadFull(r.stream, buffer.Bytes())
 	if err != nil {
 		return nil, err
 	}
-	return buf, nil
+	return buffer.Bytes(), nil
+}
+
+func (r *readableRecord) ReadAsString() (string, error) {
+	buffer := bytes.NewBuffer([]byte{})
+	_, err := io.ReadFull(r.stream, buffer.Bytes())
+	if err != nil {
+		return "", err
+	}
+	return buffer.String(), nil
+}
+
+func (r *readableRecord) Stream() io.Reader {
+	return r.stream
+}
+
+func (r *readableRecord) IsLast() bool {
+	return r.last
+}
+
+func (r *readableRecord) Size() uint64 {
+	return r.size
+}
+
+func (r *readableRecord) Labels() map[string]any {
+	return r.labels
+}
+
+func (r *readableRecord) ContentType() string {
+	return r.contentType
+}
+
+func (r *readableRecord) Time() uint64 {
+	return r.time
 }
