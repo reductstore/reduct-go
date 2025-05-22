@@ -21,7 +21,7 @@ var (
 )
 
 func getRandomBucketName() string {
-	return fmt.Sprintf("test-bucket-%d", rand.Int()) //nolint:gosec //uses math
+	return fmt.Sprintf("remove-test-bucket-%d", rand.Int()) //nolint:gosec //uses math
 }
 
 func getNewTestClient() *reductgo.ReductClient {

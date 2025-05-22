@@ -39,12 +39,6 @@ func TestBucketExists(t *testing.T) {
 	assert.True(t, exists)
 }
 
-func TestRemoveBucket(t *testing.T) {
-	// check if the bucket exists
-	err := mainTestBucket.Remove(context.Background())
-	assert.NoError(t, err)
-}
-
 func TestEntryRecordWriterAndReader(t *testing.T) {
 	exists, err := mainTestBucket.CheckExists(context.Background())
 	assert.NoError(t, err)
@@ -94,7 +88,6 @@ func TestEntryRecordStreamWriterAndChunkedReader(t *testing.T) {
 	// Begin reading with streaming reader
 	reader, err := mainTestBucket.BeginRead(context.Background(), "entry-stream-chunked", nil, false)
 	assert.NoError(t, err)
-
 	// Stream read in chunks (e.g., 16 bytes at a time)
 	streamReader := reader.Stream()
 	buf := make([]byte, 16)
@@ -113,4 +106,9 @@ func TestEntryRecordStreamWriterAndChunkedReader(t *testing.T) {
 
 	expectedJSON := `{"part": "one","more": 123,"nested": {"inner": "value"}}`
 	assert.JSONEq(t, expectedJSON, string(result))
+}
+func TestRemoveBucket(t *testing.T) {
+	// check if the bucket exists
+	err := mainTestBucket.Remove(context.Background())
+	assert.NoError(t, err)
 }
