@@ -15,15 +15,19 @@ type WriteOptions struct {
 	Labels      LabelMap
 }
 
-type writableRecord struct {
+type WritableRecord struct {
 	bucketName string
 	entryName  string
 	httpClient httpclient.HTTPClient
 	options    WriteOptions
 }
 
-func NewWritableRecord(bucketName string, entryName string, httpClient httpclient.HTTPClient, options WriteOptions) *writableRecord {
-	return &writableRecord{
+func NewWritableRecord(bucketName string,
+	entryName string,
+	httpClient httpclient.HTTPClient,
+	options WriteOptions,
+) *WritableRecord {
+	return &WritableRecord{
 		bucketName: bucketName,
 		entryName:  entryName,
 		httpClient: httpClient,
@@ -31,7 +35,7 @@ func NewWritableRecord(bucketName string, entryName string, httpClient httpclien
 	}
 }
 
-func (w *writableRecord) Write(data any, size int64) error {
+func (w *WritableRecord) Write(data any, size int64) error {
 	if w.options.Timestamp == 0 {
 		return fmt.Errorf("timestamp must be set")
 	}
@@ -91,7 +95,7 @@ func (w *writableRecord) Write(data any, size int64) error {
 	return nil
 }
 
-type readableRecord struct {
+type ReadableRecord struct {
 	time        int64
 	size        int64
 	last        bool
@@ -106,11 +110,11 @@ func NewReadableRecord(time int64,
 	stream io.Reader,
 	labels LabelMap,
 	contentType string,
-) *readableRecord {
+) *ReadableRecord {
 	if contentType == "" {
 		contentType = "application/octet-stream"
 	}
-	return &readableRecord{
+	return &ReadableRecord{
 		time:        time,
 		size:        size,
 		last:        last,
@@ -120,12 +124,12 @@ func NewReadableRecord(time int64,
 	}
 }
 
-// Read reads the record from the stream
+// Read reads the record from the stream.
 //
-// note: calling read on last record will return no error, but may return empty data
+// note: calling read on last record will return no error, but may return empty data.
 //
-// calling this method on a last record is not recommended, use Stream() instead
-func (r *readableRecord) Read() ([]byte, error) {
+// calling this method on a last record is not recommended, use Stream() instead.
+func (r *ReadableRecord) Read() ([]byte, error) {
 	// read from stream
 	data, err := io.ReadAll(r.stream)
 	if err != nil {
@@ -134,7 +138,7 @@ func (r *readableRecord) Read() ([]byte, error) {
 	return data, nil
 }
 
-func (r *readableRecord) ReadAsString() (string, error) {
+func (r *ReadableRecord) ReadAsString() (string, error) {
 	data, err := io.ReadAll(r.stream)
 	if err != nil {
 		return "", err
@@ -142,26 +146,26 @@ func (r *readableRecord) ReadAsString() (string, error) {
 	return string(data), nil
 }
 
-func (r *readableRecord) Stream() io.Reader {
+func (r *ReadableRecord) Stream() io.Reader {
 	return r.stream
 }
 
-func (r *readableRecord) IsLast() bool {
+func (r *ReadableRecord) IsLast() bool {
 	return r.last
 }
 
-func (r *readableRecord) Size() int64 {
+func (r *ReadableRecord) Size() int64 {
 	return r.size
 }
 
-func (r *readableRecord) Labels() LabelMap {
+func (r *ReadableRecord) Labels() LabelMap {
 	return r.labels
 }
 
-func (r *readableRecord) ContentType() string {
+func (r *ReadableRecord) ContentType() string {
 	return r.contentType
 }
 
-func (r *readableRecord) Time() int64 {
+func (r *ReadableRecord) Time() int64 {
 	return r.time
 }

@@ -20,12 +20,12 @@ const (
 )
 
 var (
-	InvalidRequest  int = -6 // used for invalid requests
-	Interrupt           = -5 // used for interrupting a long-running task or query
-	UrlParseError       = -4
-	ConnectionError     = -3
-	Timeout             = -2
-	Unknown             = -1
+	InvalidRequest  = -6 // used for invalid requests.
+	Interrupt       = -5 // used for interrupting a long-running task or query.
+	URLParseError   = -4 // used for invalid url.
+	ConnectionError = -3 // used for network errors.
+	Timeout         = -2 // used for timeout errors.
+	Unknown         = -1 // used for unknown errors.
 )
 
 type HTTPClient interface {
@@ -225,47 +225,47 @@ func (c *httpClient) Post(ctx context.Context, path string, requestBody, respons
 	}
 	return nil
 }
-
 func handleHTTPError(err error) error {
 	var opErr *net.OpError
-	if errors.As(err, &opErr) {
+	var urlErr *url.Error
+
+	switch {
+	case errors.As(err, &opErr):
 		return &model.APIError{
 			Message:  "network error",
 			Original: err,
 			Status:   ConnectionError,
 		}
-	}
-	var urlErr *url.Error
-	if errors.As(err, &urlErr) {
+	case errors.As(err, &urlErr):
 		return &model.APIError{
 			Message:  "invalid url",
 			Original: err,
-			Status:   UrlParseError,
+			Status:   URLParseError,
 		}
-	}
-	if errors.Is(err, http.ErrServerClosed) {
+	case errors.Is(err, http.ErrServerClosed):
 		return &model.APIError{
 			Message:  "server closed",
 			Original: err,
 			Status:   ConnectionError,
 		}
-	} else if errors.Is(err, context.Canceled) {
+	case errors.Is(err, context.Canceled):
 		return &model.APIError{
 			Message:  "request canceled",
 			Original: err,
 			Status:   Interrupt,
 		}
-	} else if errors.Is(err, context.DeadlineExceeded) {
+	case errors.Is(err, context.DeadlineExceeded):
 		return &model.APIError{
 			Message:  "request timed out",
 			Original: err,
 			Status:   Timeout,
 		}
-	}
-	return &model.APIError{
-		Message:  err.Error(),
-		Original: err,
-		Status:   Unknown,
+	default:
+		return &model.APIError{
+			Message:  err.Error(),
+			Original: err,
+			Status:   Unknown,
+		}
 	}
 }
 

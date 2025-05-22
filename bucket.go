@@ -3,6 +3,7 @@ package reductgo
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -91,13 +92,13 @@ func (b *Bucket) Remove(ctx context.Context) error {
 //
 // It returns a readableRecord or an error if the read fails.
 //
-// Use readableRecord.Read() to read the content of the reader
-func (b *Bucket) BeginRead(ctx context.Context, entry string, id *string, head bool) (*readableRecord, error) {
+// Use readableRecord.Read() to read the content of the reader.
+func (b *Bucket) BeginRead(ctx context.Context, entry string, id *string, head bool) (*ReadableRecord, error) {
 	return b.readRecord(ctx, entry, id, head)
 }
 
-// readRecord prepares an entry record reader from the reductstore server
-func (b *Bucket) readRecord(ctx context.Context, entry string, ts *string, head bool) (*readableRecord, error) {
+// readRecord prepares an entry record reader from the reductstore server.
+func (b *Bucket) readRecord(ctx context.Context, entry string, ts *string, head bool) (*ReadableRecord, error) {
 	query := url.Values{}
 	if ts != nil {
 		query.Set("ts", *ts)
@@ -124,17 +125,17 @@ func (b *Bucket) readRecord(ctx context.Context, entry string, ts *string, head 
 	if err != nil {
 		return nil, err
 	}
-
+	defer resp.Body.Close()
 	errorMessage := resp.Header.Get("x-reduct-error")
-	if resp.StatusCode == 204 {
+	if resp.StatusCode == http.StatusNoContent {
 		if errorMessage == "" {
 			errorMessage = "No content"
 		}
-		return nil, model.APIError{Status: 204, Message: errorMessage}
+		return nil, model.APIError{Status: http.StatusNoContent, Message: errorMessage}
 	}
 	// check there is data in the response
 	if resp.ContentLength == 0 || resp.Body == nil {
-		return nil, model.APIError{Status: 204, Message: "No content"}
+		return nil, model.APIError{Status: http.StatusNoContent, Message: "No content"}
 	}
 
 	timeStr := resp.Header.Get("x-reduct-time")
@@ -148,22 +149,22 @@ func (b *Bucket) readRecord(ctx context.Context, entry string, ts *string, head 
 		}
 	}
 
-	timeVal, _ := strconv.ParseInt(timeStr, 10, 64)
-	sizeVal, _ := strconv.ParseInt(sizeStr, 10, 64)
+	timeVal, _ := strconv.ParseInt(timeStr, 10, 64) //nolint:errcheck //not needed
+	sizeVal, _ := strconv.ParseInt(sizeStr, 10, 64) //nolint:errcheck //not needed
 	record := NewReadableRecord(timeVal, sizeVal, last, resp.Body, labels, resp.Header.Get("Content-Type"))
 	return record, nil
 
 }
 
-// BeginWrite starts a record writer for an entry
+// BeginWrite starts a record writer for an entry.
 //
 // Parameters:
 //   - entry the name of the entry to write the record to.
 //   - options:
 //   - TimeStamp: timestamp in microseconds, it is set to current time if not provided
 //   - ContentType: "text/plain"
-//   - Labels: record label kev:value pairs  {label1: "value1", label2: "value2"}
-func (b *Bucket) BeginWrite(entry string, options *WriteOptions) *writableRecord {
+//   - Labels: record label kev:value pairs  {label1: "value1", label2: "value2"}.
+func (b *Bucket) BeginWrite(entry string, options *WriteOptions) *WritableRecord {
 	var localOptions = WriteOptions{Timestamp: 0}
 	if options != nil {
 		localOptions = *options
@@ -189,7 +190,7 @@ func (b *Bucket) BeginRemoveBatch(entry string) *Batch {
 	return NewBatch(b.Name, entry, b.HTTPClient, BatchRemove)
 }
 
-// QueryType represents the type of query to run
+// QueryType represents the type of query to run.
 type QueryType string
 
 const (
@@ -197,7 +198,7 @@ const (
 	QueryTypeRemove QueryType = "REMOVE"
 )
 
-// QueryOptions represents a query to run on an entry
+// QueryOptions represents a query to run on an entry.
 type QueryOptions struct {
 	QueryType    QueryType     `json:"query_type"`
 	Start        *int64        `json:"start,omitempty"`
@@ -210,20 +211,20 @@ type QueryOptions struct {
 	PollInterval time.Duration `json:"-"`
 }
 
-// QueryResponse represents the response from a query operation
+// QueryResponse represents the response from a query operation.
 type QueryResponse struct {
 	ID             int64 `json:"id,omitempty"`
 	RemovedRecords int64 `json:"removed_records,omitempty"`
 }
 
 type QueryResult struct {
-	records <-chan *readableRecord
+	records <-chan *ReadableRecord
 	done    bool
 }
 
-func (q *QueryResult) Records() <-chan *readableRecord {
+func (q *QueryResult) Records() <-chan *ReadableRecord {
 	if q.records == nil {
-		ch := make(chan *readableRecord)
+		ch := make(chan *ReadableRecord)
 		close(ch)
 		return ch
 	}
@@ -276,7 +277,7 @@ func (b *Bucket) Query(ctx context.Context, entry string, options *QueryOptions)
 	return b.FetchAndParseBatchedRecords(ctx, entry, resp.ID, options.Continuous, options.PollInterval, options.Head)
 }
 
-// RemoveQuery removes records by query
+// RemoveQuery removes records by query.
 //
 // Parameters:
 //   - ctx: Context for cancellation and timeout control
@@ -286,7 +287,7 @@ func (b *Bucket) Query(ctx context.Context, entry string, options *QueryOptions)
 //   - options: Optional query options. Only When and Ext fields are used, other options are ignored
 //
 // Note: remove is exclusive of the end point. [start, end)
-// Returns the number of records removed
+// Returns the number of records removed.
 func (b *Bucket) RemoveQuery(ctx context.Context, entry string, options *QueryOptions) (int64, error) {
 	if options == nil {
 		options = &QueryOptions{}
@@ -302,7 +303,7 @@ func (b *Bucket) RemoveQuery(ctx context.Context, entry string, options *QueryOp
 
 }
 
-// ExecuteQuery runs a query on an entry, it returns the query ID or an error
+// ExecuteQuery runs a query on an entry, it returns the query ID or an error.
 func (b *Bucket) ExecuteQuery(ctx context.Context, entry string, option *QueryOptions) (QueryResponse, error) {
 	path := fmt.Sprintf("/b/%s/%s/q", b.Name, entry)
 	if option == nil {
@@ -328,7 +329,8 @@ func (b *Bucket) ExecuteQuery(ctx context.Context, entry string, option *QueryOp
 func (b *Bucket) FetchAndParseBatchedRecords(ctx context.Context, entry string, id int64, continueQuery bool, pollInterval time.Duration, head bool) (*QueryResult, error) {
 	record, err := b.readBatchedRecords(ctx, entry, id, head)
 	if err != nil {
-		if apiErr, ok := err.(model.APIError); ok && apiErr.Status == 204 {
+		var apiErr model.APIError
+		if errors.As(err, &apiErr) && apiErr.Status == 204 {
 			// Only poll if we got a 204
 			if continueQuery {
 				select {
@@ -360,11 +362,11 @@ func (b *Bucket) FetchAndParseBatchedRecords(ctx context.Context, entry string, 
 	}, nil
 }
 
-// readBatchedRecords prepares an entry record reader from the reductstore server
-func (b *Bucket) readBatchedRecords(ctx context.Context, entry string, id int64, head bool) (chan *readableRecord, error) {
+// readBatchedRecords prepares an entry record reader from the reductstore server.
+func (b *Bucket) readBatchedRecords(ctx context.Context, entry string, id int64, head bool) (chan *ReadableRecord, error) {
 	path := fmt.Sprintf("/b/%s/%s/batch?q=%d", b.Name, entry, id)
 	// Create buffered channels
-	records := make(chan *readableRecord, 100)
+	records := make(chan *ReadableRecord, 100)
 	var req *http.Request
 	var err error
 	if head {
@@ -379,17 +381,17 @@ func (b *Bucket) readBatchedRecords(ctx context.Context, entry string, id int64,
 		return nil, err
 	}
 
-	resp, err := b.HTTPClient.Do(req)
+	resp, err := b.HTTPClient.Do(req) //nolint:bodyclose //intentionally needed for streaming
 	if err != nil {
 		return nil, err
 	}
 
-	if resp.StatusCode == 204 {
+	if resp.StatusCode == http.StatusNoContent {
 		errorMessage := resp.Header.Get("x-reduct-error")
 		if errorMessage == "" {
 			errorMessage = "No content"
 		}
-		return nil, model.APIError{Status: 204, Message: errorMessage}
+		return nil, model.APIError{Status: http.StatusNoContent, Message: errorMessage}
 	}
 
 	// Find all timestamp headers first
@@ -434,17 +436,17 @@ func (b *Bucket) readBatchedRecords(ctx context.Context, entry string, id int64,
 				isLastInQuery := resp.Header.Get("x-reduct-last") == "true" && isLastInBatch
 				var buffer = make([]byte, parsed.Size)
 				var body io.ReadCloser
-				if head {
+				switch {
+				case head:
 					body = io.NopCloser(bytes.NewReader([]byte{}))
-				} else if isLastInBatch {
+				case isLastInBatch:
 					if leftover != nil {
 						body = io.NopCloser(io.MultiReader(bytes.NewReader(leftover), resp.Body))
 						leftover = nil
 					} else {
 						body = resp.Body
 					}
-				} else {
-
+				default:
 					var n int
 					if leftover != nil {
 						n = copy(buffer, leftover)
@@ -480,14 +482,14 @@ func (b *Bucket) readBatchedRecords(ctx context.Context, entry string, id int64,
 	return records, err
 }
 
-// CSVRowResult represents the parsed result of a CSV row
+// CSVRowResult represents the parsed result of a CSV row.
 type CSVRowResult struct {
 	Size        int64    `json:"size"`
 	ContentType string   `json:"content_type,omitempty"`
 	Labels      LabelMap `json:"labels"`
 }
 
-// ParseCSVRow parses a CSV row with support for escaped values
+// ParseCSVRow parses a CSV row with support for escaped values.
 func ParseCSVRow(row string) CSVRowResult {
 	items := make([]string, 0)
 	escaped := ""

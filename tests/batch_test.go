@@ -23,8 +23,8 @@ func TestBatchReading(t *testing.T) {
 	data1 := map[string]any{"key": "value1"}
 	data2 := map[string]any{"key": "value2"}
 
-	jsonData1, _ := json.Marshal(data1)
-	jsonData2, _ := json.Marshal(data2)
+	jsonData1, _ := json.Marshal(data1) //nolint:errcheck //not needed
+	jsonData2, _ := json.Marshal(data2) //nolint:errcheck //not needed
 
 	ts1 := time.Now().UTC().UnixMicro()
 	ts2 := ts1 + 1000
@@ -82,8 +82,8 @@ func TestFetchAndParseBatchedRecords(t *testing.T) {
 	data1 := map[string]any{"key": "value1"}
 	data2 := map[string]any{"key": "value2"}
 
-	jsonData1, _ := json.Marshal(data1)
-	jsonData2, _ := json.Marshal(data2)
+	jsonData1, _ := json.Marshal(data1) //nolint:errcheck //not needed
+	jsonData2, _ := json.Marshal(data2) //nolint:errcheck //not needed
 
 	ts1 := time.Now().UTC().UnixMicro()
 	ts2 := ts1 + 1000
@@ -102,9 +102,9 @@ func TestFetchAndParseBatchedRecords(t *testing.T) {
 		ctx,
 		"batch-test-entry",
 		id,
-		true,          // continue query
-		5*time.Second, // poll interval
-		false,         // not head request
+		true,
+		5*time.Second,
+		false,
 	)
 	assert.NoError(t, err)
 
@@ -142,7 +142,7 @@ func TestBatchWrite(t *testing.T) {
 		data, err := record.Read()
 		assert.NoError(t, err)
 		assert.Contains(t, string(data), "data")
-		if record.Time() == int64(now+1) {
+		if record.Time() == now+1 {
 			assert.Equal(t, "value", record.Labels()["label"])
 		}
 	}

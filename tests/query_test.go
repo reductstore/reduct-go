@@ -133,11 +133,10 @@ func TestQuery(t *testing.T) {
 				fmt.Printf("time:%d  last record data:%s labels:%v\n", record.Time(), string(data), record.Labels())
 				assert.NoError(t, err)
 				break
-			} else {
-				data, err := record.Read()
-				assert.NoError(t, err)
-				fmt.Printf("time:%d  data:%s labels:%v\n", record.Time(), string(data), record.Labels())
 			}
+			data, err := record.Read()
+			assert.NoError(t, err)
+			fmt.Printf("time:%d  data:%s labels:%v\n", record.Time(), string(data), record.Labels())
 		}
 	})
 
