@@ -10,7 +10,7 @@ import (
 )
 
 type WriteOptions struct {
-	Timestamp   uint64
+	Timestamp   int64
 	ContentType string
 	Labels      LabelMap
 }
@@ -92,20 +92,19 @@ func (w *writableRecord) Write(data any, size int64) error {
 }
 
 type readableRecord struct {
-	time        uint64
-	size        uint64
+	time        int64
+	size        int64
 	last        bool
 	stream      io.Reader
-	labels      map[string]any
+	labels      LabelMap
 	contentType string
 }
 
-func NewReadableRecord(time uint64,
-	size uint64,
+func NewReadableRecord(time int64,
+	size int64,
 	last bool,
-	head bool,
 	stream io.Reader,
-	labels map[string]any,
+	labels LabelMap,
 	contentType string,
 ) *readableRecord {
 	if contentType == "" {
@@ -121,23 +120,26 @@ func NewReadableRecord(time uint64,
 	}
 }
 
+// Read reads the record from the stream
+//
+// note: calling read on last record will return no error, but may return empty data
+//
+// calling this method on a last record is not recommended, use Stream() instead
 func (r *readableRecord) Read() ([]byte, error) {
 	// read from stream
-	buffer := bytes.NewBuffer([]byte{})
-	_, err := io.ReadFull(r.stream, buffer.Bytes())
+	data, err := io.ReadAll(r.stream)
 	if err != nil {
 		return nil, err
 	}
-	return buffer.Bytes(), nil
+	return data, nil
 }
 
 func (r *readableRecord) ReadAsString() (string, error) {
-	buffer := bytes.NewBuffer([]byte{})
-	_, err := io.ReadFull(r.stream, buffer.Bytes())
+	data, err := io.ReadAll(r.stream)
 	if err != nil {
 		return "", err
 	}
-	return buffer.String(), nil
+	return string(data), nil
 }
 
 func (r *readableRecord) Stream() io.Reader {
@@ -148,11 +150,11 @@ func (r *readableRecord) IsLast() bool {
 	return r.last
 }
 
-func (r *readableRecord) Size() uint64 {
+func (r *readableRecord) Size() int64 {
 	return r.size
 }
 
-func (r *readableRecord) Labels() map[string]any {
+func (r *readableRecord) Labels() LabelMap {
 	return r.labels
 }
 
@@ -160,6 +162,6 @@ func (r *readableRecord) ContentType() string {
 	return r.contentType
 }
 
-func (r *readableRecord) Time() uint64 {
+func (r *readableRecord) Time() int64 {
 	return r.time
 }
