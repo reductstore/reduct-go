@@ -163,7 +163,7 @@ func (b *Bucket) readRecord(ctx context.Context, entry string, ts *string, head 
 //   - TimeStamp: timestamp in microseconds, it is set to current time if not provided
 //   - ContentType: "text/plain"
 //   - Labels: record label kev:value pairs  {label1: "value1", label2: "value2"}.
-func (b *Bucket) BeginWrite(ctx context.Context, entry string, options *WriteOptions) *WritableRecord {
+func (b *Bucket) BeginWrite(_ context.Context, entry string, options *WriteOptions) *WritableRecord {
 	var localOptions = WriteOptions{Timestamp: 0}
 	if options != nil {
 		localOptions = *options
@@ -177,15 +177,15 @@ func (b *Bucket) BeginWrite(ctx context.Context, entry string, options *WriteOpt
 	return NewWritableRecord(b.Name, entry, b.HTTPClient, localOptions)
 }
 
-func (b *Bucket) BeginWriteBatch(ctx context.Context, entry string) *Batch {
+func (b *Bucket) BeginWriteBatch(_ context.Context, entry string) *Batch {
 	return NewBatch(b.Name, entry, b.HTTPClient, BatchWrite)
 }
 
-func (b *Bucket) BeginUpdateBatch(ctx context.Context, entry string) *Batch {
+func (b *Bucket) BeginUpdateBatch(_ context.Context, entry string) *Batch {
 	return NewBatch(b.Name, entry, b.HTTPClient, BatchUpdate)
 }
 
-func (b *Bucket) BeginRemoveBatch(ctx context.Context, entry string) *Batch {
+func (b *Bucket) BeginRemoveBatch(_ context.Context, entry string) *Batch {
 	return NewBatch(b.Name, entry, b.HTTPClient, BatchRemove)
 }
 
