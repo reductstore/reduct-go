@@ -121,11 +121,10 @@ func (b *Bucket) readRecord(ctx context.Context, entry string, ts *string, head 
 		req.Header.Set("Accept", "application/octet-stream")
 	}
 
-	resp, err := b.HTTPClient.Do(req)
+	resp, err := b.HTTPClient.Do(req) //nolint:bodyclose //intentionally needed for streaming
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
 	errorMessage := resp.Header.Get("x-reduct-error")
 	if resp.StatusCode == http.StatusNoContent {
 		if errorMessage == "" {
@@ -164,7 +163,7 @@ func (b *Bucket) readRecord(ctx context.Context, entry string, ts *string, head 
 //   - TimeStamp: timestamp in microseconds, it is set to current time if not provided
 //   - ContentType: "text/plain"
 //   - Labels: record label kev:value pairs  {label1: "value1", label2: "value2"}.
-func (b *Bucket) BeginWrite(entry string, options *WriteOptions) *WritableRecord {
+func (b *Bucket) BeginWrite(ctx context.Context, entry string, options *WriteOptions) *WritableRecord {
 	var localOptions = WriteOptions{Timestamp: 0}
 	if options != nil {
 		localOptions = *options
@@ -178,15 +177,15 @@ func (b *Bucket) BeginWrite(entry string, options *WriteOptions) *WritableRecord
 	return NewWritableRecord(b.Name, entry, b.HTTPClient, localOptions)
 }
 
-func (b *Bucket) BeginWriteBatch(entry string) *Batch {
+func (b *Bucket) BeginWriteBatch(ctx context.Context, entry string) *Batch {
 	return NewBatch(b.Name, entry, b.HTTPClient, BatchWrite)
 }
 
-func (b *Bucket) BeginUpdateBatch(entry string) *Batch {
+func (b *Bucket) BeginUpdateBatch(ctx context.Context, entry string) *Batch {
 	return NewBatch(b.Name, entry, b.HTTPClient, BatchUpdate)
 }
 
-func (b *Bucket) BeginRemoveBatch(entry string) *Batch {
+func (b *Bucket) BeginRemoveBatch(ctx context.Context, entry string) *Batch {
 	return NewBatch(b.Name, entry, b.HTTPClient, BatchRemove)
 }
 
@@ -269,12 +268,12 @@ func (b *Bucket) Query(ctx context.Context, entry string, options *QueryOptions)
 	if options.QueryType == "" {
 		options.QueryType = QueryTypeQuery
 	}
-	resp, err := b.ExecuteQuery(ctx, entry, options)
+	resp, err := b.executeQuery(ctx, entry, options)
 	if err != nil {
 		return &QueryResult{}, err
 	}
 
-	return b.FetchAndParseBatchedRecords(ctx, entry, resp.ID, options.Continuous, options.PollInterval, options.Head)
+	return b.fetchAndParseBatchedRecords(ctx, entry, resp.ID, options.Continuous, options.PollInterval, options.Head)
 }
 
 // RemoveQuery removes records by query.
@@ -294,7 +293,7 @@ func (b *Bucket) RemoveQuery(ctx context.Context, entry string, options *QueryOp
 	}
 	options.QueryType = QueryTypeRemove
 
-	resp, err := b.ExecuteQuery(ctx, entry, options)
+	resp, err := b.executeQuery(ctx, entry, options)
 	if err != nil {
 		return 0, err
 	}
@@ -303,8 +302,8 @@ func (b *Bucket) RemoveQuery(ctx context.Context, entry string, options *QueryOp
 
 }
 
-// ExecuteQuery runs a query on an entry, it returns the query ID or an error.
-func (b *Bucket) ExecuteQuery(ctx context.Context, entry string, option *QueryOptions) (QueryResponse, error) {
+// executeQuery runs a query on an entry, it returns the query ID or an error.
+func (b *Bucket) executeQuery(ctx context.Context, entry string, option *QueryOptions) (QueryResponse, error) {
 	path := fmt.Sprintf("/b/%s/%s/q", b.Name, entry)
 	if option == nil {
 		option = &QueryOptions{
@@ -320,13 +319,13 @@ func (b *Bucket) ExecuteQuery(ctx context.Context, entry string, option *QueryOp
 	return resp, nil
 }
 
-// FetchAndParseBatchedRecords fetches and parses batched records with optional polling
+// fetchAndParseBatchedRecords fetches and parses batched records with optional polling
 // It takes a context, entry name, query ID, whether to continue polling on 204 status,
 // polling interval duration, and whether this is a HEAD request.
 // It returns a QueryResult containing the records channel or an error.
 // If continueQuery is true and a 204 status is received, it will wait pollInterval
 // duration and retry the request once before returning.
-func (b *Bucket) FetchAndParseBatchedRecords(ctx context.Context, entry string, id int64, continueQuery bool, pollInterval time.Duration, head bool) (*QueryResult, error) {
+func (b *Bucket) fetchAndParseBatchedRecords(ctx context.Context, entry string, id int64, continueQuery bool, pollInterval time.Duration, head bool) (*QueryResult, error) {
 	record, err := b.readBatchedRecords(ctx, entry, id, head)
 	if err != nil {
 		var apiErr model.APIError

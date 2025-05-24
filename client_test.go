@@ -1,15 +1,14 @@
-package tests
+package reductgo
 
 import (
 	"context"
+	"net/http"
 	"testing"
 
 	"reduct-go/model"
 
 	"github.com/stretchr/testify/assert"
 )
-
-var serverURL = "http://localhost:8383"
 
 func TestCreateOrGetBucket_Success(t *testing.T) {
 	settings := model.NewBucketSettingBuilder().
@@ -65,4 +64,22 @@ func TestBucketExistsFail(t *testing.T) {
 	exists, err := client.CheckBucketExists(ctx, "new-not-exist")
 	assert.Error(t, err)
 	assert.False(t, exists)
+}
+func TestReductStoreHealth(t *testing.T) {
+	healthURL := "http://127.0.0.1:8383/api/v1/alive"
+
+	req, err := http.NewRequest(http.MethodHead, healthURL, http.NoBody)
+	assert.NoError(t, err)
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	assert.NoError(t, err)
+
+	defer func() {
+		assert.NoError(t, resp.Body.Close())
+	}()
+
+	assert.Equal(t, resp.StatusCode, http.StatusOK)
 }

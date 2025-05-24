@@ -1,10 +1,9 @@
-package tests
+package reductgo
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
-	reductgo "reduct-go"
 	"testing"
 	"time"
 
@@ -17,7 +16,7 @@ func TestBatchReading(t *testing.T) {
 	assert.True(t, exists)
 
 	// First, let's write some test data using batch write
-	batch := mainTestBucket.BeginWriteBatch("batch-test-entry")
+	batch := mainTestBucket.BeginWriteBatch(context.Background(), "batch-test-entry")
 
 	// Add a few records with different timestamps
 	data1 := map[string]any{"key": "value1"}
@@ -76,7 +75,7 @@ func TestFetchAndParseBatchedRecords(t *testing.T) {
 	assert.NoError(t, err)
 	assert.True(t, exists)
 	// First, let's write some test data using batch write
-	batch := mainTestBucket.BeginWriteBatch("batch-test-entry")
+	batch := mainTestBucket.BeginWriteBatch(context.Background(), "batch-test-entry")
 
 	// Add a few records with different timestamps
 	data1 := map[string]any{"key": "value1"}
@@ -95,10 +94,10 @@ func TestFetchAndParseBatchedRecords(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	// get the id of the last record
-	queryResult, err := mainTestBucket.ExecuteQuery(ctx, "batch-test-entry", nil)
+	queryResult, err := mainTestBucket.executeQuery(ctx, "batch-test-entry", nil)
 	assert.NoError(t, err)
 	id := queryResult.ID
-	fetchResult, err := mainTestBucket.FetchAndParseBatchedRecords(
+	fetchResult, err := mainTestBucket.fetchAndParseBatchedRecords(
 		ctx,
 		"batch-test-entry",
 		id,
@@ -119,7 +118,7 @@ func TestBatchWrite(t *testing.T) {
 	entry := "test-batch-write"
 
 	// Create a batch
-	batch := mainTestBucket.BeginWriteBatch(entry)
+	batch := mainTestBucket.BeginWriteBatch(ctx, entry)
 	assert.NotNil(t, batch)
 
 	// Add records
@@ -154,7 +153,7 @@ func TestBatchUpdate(t *testing.T) {
 	entry := "test-batch-update"
 
 	// First write some records
-	batch := mainTestBucket.BeginWriteBatch(entry)
+	batch := mainTestBucket.BeginWriteBatch(ctx, entry)
 	now := time.Now().UTC().UnixMicro()
 	batch.Add(now, []byte("data1"), "text/plain", nil)
 	batch.Add(now+1, []byte("data2"), "text/plain", nil)
@@ -162,13 +161,13 @@ func TestBatchUpdate(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Update labels
-	updateBatch := mainTestBucket.BeginUpdateBatch(entry)
+	updateBatch := mainTestBucket.BeginUpdateBatch(ctx, entry)
 	updateBatch.AddOnlyLabels(now, map[string]any{"updated": "true"})
 	err = updateBatch.Write(ctx)
 	assert.NoError(t, err)
 
 	// Verify updates
-	queryResult, err := mainTestBucket.Query(ctx, entry, &reductgo.QueryOptions{
+	queryResult, err := mainTestBucket.Query(ctx, entry, &QueryOptions{
 		Start: &now,
 		Stop:  &now,
 	})
@@ -185,7 +184,7 @@ func TestBatchRemove(t *testing.T) {
 	entry := "test-batch-remove"
 
 	// First write some records
-	batch := mainTestBucket.BeginWriteBatch(entry)
+	batch := mainTestBucket.BeginWriteBatch(ctx, entry)
 	now := time.Now().UTC().UnixMicro()
 	batch.Add(now, []byte("data1"), "text/plain", nil)
 	batch.Add(now+1, []byte("data2"), "text/plain", nil)
@@ -193,12 +192,12 @@ func TestBatchRemove(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Remove records
-	removeBatch := mainTestBucket.BeginRemoveBatch(entry)
+	removeBatch := mainTestBucket.BeginRemoveBatch(ctx, entry)
 	err = removeBatch.Write(ctx)
 	assert.NoError(t, err)
 
 	// Verify removal
-	queryResult, err := mainTestBucket.Query(ctx, entry, &reductgo.QueryOptions{
+	queryResult, err := mainTestBucket.Query(ctx, entry, &QueryOptions{
 		Start: &now,
 		Stop:  &now,
 	})
@@ -217,12 +216,12 @@ func TestBatchErrors(t *testing.T) {
 	entry := "test-batch-errors"
 
 	// Test empty batch
-	batch := mainTestBucket.BeginWriteBatch(entry)
+	batch := mainTestBucket.BeginWriteBatch(ctx, entry)
 	err := batch.Write(ctx)
 	assert.Error(t, err)
 
 	// Test batch with invalid timestamps
-	batch = mainTestBucket.BeginWriteBatch(entry)
+	batch = mainTestBucket.BeginWriteBatch(ctx, entry)
 	tm := -1
 	batch.Add(int64(tm), []byte("invalid"), "text/plain", nil)
 	err = batch.Write(ctx)

@@ -1,4 +1,4 @@
-package tests
+package reductgo
 
 import (
 	"context"
@@ -8,7 +8,6 @@ import (
 	"os"
 	"testing"
 
-	reductgo "reduct-go"
 	"reduct-go/httpclient"
 	"reduct-go/model"
 
@@ -16,18 +15,19 @@ import (
 )
 
 var (
-	mainTestBucket = reductgo.Bucket{}
-	client         = reductgo.ReductClient{}
+	mainTestBucket = Bucket{}
+	serverURL      = "http://localhost:8383"
+	client         = ReductClient{}
 )
 
 func getRandomBucketName() string {
 	return fmt.Sprintf("remove-test-bucket-%d", rand.Int()) //nolint:gosec //uses math
 }
 
-func getNewTestClient() *reductgo.ReductClient {
+func getNewTestClient() *ReductClient {
 	apiToken := os.Getenv("RS_API_TOKEN")
 
-	return &reductgo.ReductClient{
+	return &ReductClient{
 		APIToken: apiToken,
 		HTTPClient: httpclient.NewHTTPClient(httpclient.Option{
 			BaseURL:  serverURL,
@@ -59,7 +59,7 @@ func tearDown() {
 func TestMain(m *testing.M) {
 	fmt.Println("Setting up test environment...")
 
-	_ = godotenv.Load("../.env") //nolint:errcheck //Loads env from .env into os.Environ
+	_ = godotenv.Load(".env") //nolint:errcheck //Loads env from .env into os.Environ
 
 	mainTestBucket.Name = getRandomBucketName()
 	mainTestBucket.HTTPClient = getNewTestClient().HTTPClient

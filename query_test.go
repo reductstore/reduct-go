@@ -1,4 +1,4 @@
-package tests
+package reductgo
 
 import (
 	"context"
@@ -6,8 +6,6 @@ import (
 	"io"
 	"testing"
 	"time"
-
-	reductgo "reduct-go"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -17,7 +15,7 @@ func TestQuery(t *testing.T) {
 	entry := "test-query"
 
 	// Write test data
-	batch := mainTestBucket.BeginWriteBatch(entry)
+	batch := mainTestBucket.BeginWriteBatch(ctx, entry)
 	now := time.Now().UTC().UnixMicro()
 	batch.Add(now+1, []byte("data0"), "application/json", map[string]any{"type": "test0"})
 	batch.Add(now+2, []byte("data1"), "application/json", map[string]any{"type": "test1"})
@@ -47,7 +45,7 @@ func TestQuery(t *testing.T) {
 	t.Run("Query with Time Range", func(t *testing.T) {
 		start := now
 		end := now + 3
-		queryResult, err := mainTestBucket.Query(ctx, entry, &reductgo.QueryOptions{
+		queryResult, err := mainTestBucket.Query(ctx, entry, &QueryOptions{
 			Start: &start,
 			Stop:  &end,
 		})
@@ -67,7 +65,7 @@ func TestQuery(t *testing.T) {
 	t.Run("Query with Invalid Time Range", func(t *testing.T) {
 		start := now + 4
 		end := now
-		queryResult, err := mainTestBucket.Query(ctx, entry, &reductgo.QueryOptions{
+		queryResult, err := mainTestBucket.Query(ctx, entry, &QueryOptions{
 			Start: &start,
 			Stop:  &end,
 		})
@@ -84,7 +82,7 @@ func TestQuery(t *testing.T) {
 	})
 
 	t.Run("Query with Labels", func(t *testing.T) {
-		options := &reductgo.QueryOptions{
+		options := &QueryOptions{
 			When: map[string]any{"&type": map[string]any{"$eq": "test1"}},
 		}
 		queryResult, err := mainTestBucket.Query(ctx, entry, options)
@@ -102,7 +100,7 @@ func TestQuery(t *testing.T) {
 	})
 
 	t.Run("Query Head Only", func(t *testing.T) {
-		options := &reductgo.QueryOptions{
+		options := &QueryOptions{
 			Head: true,
 		}
 		queryResult, err := mainTestBucket.Query(ctx, entry, options)
@@ -145,7 +143,7 @@ func TestQuery(t *testing.T) {
 		entryLarge := "test-query-large"
 
 		// Write some small records first
-		batch := mainTestBucket.BeginWriteBatch(entryLarge)
+		batch := mainTestBucket.BeginWriteBatch(ctx, entryLarge)
 		now := time.Now().UTC().UnixMicro()
 		batch.Add(now+1, []byte("small1"), "text/plain", nil)
 		batch.Add(now+2, []byte("small2"), "text/plain", nil)
@@ -208,7 +206,7 @@ func TestRemoveQuery(t *testing.T) {
 	ctx := context.Background()
 	entry := "test-remove-query-entry"
 	// Write test data
-	batch := mainTestBucket.BeginWriteBatch(entry)
+	batch := mainTestBucket.BeginWriteBatch(ctx, entry)
 	now := time.Now().UTC().UnixMicro()
 	batch.Add(now, []byte("data1"), "text/plain", map[string]any{"type": "test1"})
 	batch.Add(now+1, []byte("data2"), "text/plain", map[string]any{"type": "test2"})
@@ -219,7 +217,7 @@ func TestRemoveQuery(t *testing.T) {
 	t.Run("Remove by Time Range", func(t *testing.T) {
 		start := now
 		end := now + 2
-		removed, err := mainTestBucket.RemoveQuery(ctx, entry, &reductgo.QueryOptions{
+		removed, err := mainTestBucket.RemoveQuery(ctx, entry, &QueryOptions{
 			Start: &start,
 			Stop:  &end,
 		})
@@ -247,7 +245,7 @@ func TestRemoveQuery(t *testing.T) {
 	t.Run("Remove by Labels", func(t *testing.T) {
 		// Write more test data
 		entry := "test-remove-by-label"
-		batch := mainTestBucket.BeginWriteBatch(entry)
+		batch := mainTestBucket.BeginWriteBatch(ctx, entry)
 		now := time.Now().UTC().UnixMicro()
 		batch.Add(now, []byte("data3"), "text/plain", map[string]any{"type": "testExisting"})
 		batch.Add(now+1, []byte("data4"), "text/plain", map[string]any{"type": "testRemoved"})
@@ -255,7 +253,7 @@ func TestRemoveQuery(t *testing.T) {
 		err := batch.Write(ctx)
 		assert.NoError(t, err)
 
-		options := &reductgo.QueryOptions{
+		options := &QueryOptions{
 			When: map[string]any{"&type": map[string]any{"$eq": "testRemoved"}},
 		}
 		removed, err := mainTestBucket.RemoveQuery(ctx, entry, options)
