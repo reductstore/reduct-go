@@ -110,12 +110,6 @@ func TestEntryRecordStreamWriterAndChunkedReader(t *testing.T) {
 	assert.JSONEq(t, expectedJSON, string(result))
 }
 
-func TestRemoveBucket(t *testing.T) {
-	// check if the bucket exists
-	err := mainTestBucket.Remove(context.Background())
-	assert.NoError(t, err)
-}
-
 func TestUpdateRecordLabels(t *testing.T) {
 	ctx := context.Background()
 	entry := "test-update-labels"
@@ -146,4 +140,10 @@ func TestUpdateRecordLabels(t *testing.T) {
 	labels := record.Labels()
 	assert.NotContains(t, labels, "initial", "initial label should be removed")
 	assert.Equal(t, "new-value", labels["updated"], "updated label should be set")
+}
+
+func TestRemoveBucket(t *testing.T) {
+	// check if the bucket exists
+	err := mainTestBucket.Remove(context.Background())
+	assert.NoError(t, err)
 }
