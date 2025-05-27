@@ -4,9 +4,12 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
+	"net/url"
 	"time"
 
 	"reduct-go/model"
@@ -16,12 +19,25 @@ const (
 	APIVersion = "v1"
 )
 
+var (
+	InvalidRequest  = -6 // used for invalid requests.
+	Interrupt       = -5 // used for interrupting a long-running task or query.
+	URLParseError   = -4 // used for invalid url.
+	ConnectionError = -3 // used for network errors.
+	Timeout         = -2 // used for timeout errors.
+	Unknown         = -1 // used for unknown errors.
+)
+
 type HTTPClient interface {
 	Post(ctx context.Context, path string, requestBody, responseData any) error
 	Put(ctx context.Context, path string, requestBody, responseData any) error
+	Patch(ctx context.Context, path string, requestBody, responseData any) error
 	Get(ctx context.Context, path string, responseData any) error
 	Head(ctx context.Context, path string) error
 	Delete(ctx context.Context, path string) error
+	Do(req *http.Request) (*http.Response, error)
+	NewRequest(method, path string, body io.Reader) (*http.Request, error)
+	NewRequestWithContext(ctx context.Context, method, path string, body io.Reader) (*http.Request, error)
 }
 
 type Option struct {
@@ -47,6 +63,23 @@ func NewHTTPClient(option Option) HTTPClient {
 	}
 }
 
+func (c *httpClient) NewRequest(method, path string, body io.Reader) (*http.Request, error) {
+	req, err := http.NewRequest(method, c.url+path, body)
+	if err != nil {
+		return nil, err
+	}
+	c.setClientHeaders(req)
+	return req, nil
+}
+
+func (c *httpClient) NewRequestWithContext(ctx context.Context, method, path string, body io.Reader) (*http.Request, error) {
+	req, err := http.NewRequestWithContext(ctx, method, c.url+path, body)
+	if err != nil {
+		return nil, err
+	}
+	c.setClientHeaders(req)
+	return req, nil
+}
 func (c *httpClient) setClientHeaders(req *http.Request) {
 	req.Header.Set("Authorization", "Bearer "+c.apiToken)
 	req.Header.Set("Content-Type", "application/json")
@@ -129,6 +162,79 @@ func (c *httpClient) Put(ctx context.Context, path string, requestBody, response
 	return nil
 }
 
+func (c *httpClient) Patch(ctx context.Context, path string, requestBody, responseData any) error {
+	if c.client == nil {
+		return &model.APIError{
+			Message: "http client is not initialized",
+		}
+	}
+	// Marshal the request body to JSON
+	var reqBody io.Reader
+	if requestBody != nil {
+		jsonData, err := json.Marshal(requestBody)
+		if err != nil {
+			return &model.APIError{
+				Message:  err.Error(),
+				Original: err,
+			}
+		}
+		reqBody = bytes.NewBuffer(jsonData)
+	} else {
+		reqBody = nil
+	}
+	// Create a new HTTP request
+	req, err := http.NewRequestWithContext(ctx, http.MethodPatch, c.url+path, reqBody)
+	if err != nil {
+		return &model.APIError{
+			Original: err,
+			Message:  err.Error(),
+		}
+	}
+	// set reques headers
+	c.setClientHeaders(req)
+	// Create an HTTP client and perform the request
+	resp, err := c.client.Do(req)
+
+	if err != nil {
+		return handleHTTPError(err)
+	}
+	reductError := resp.Header.Get("X-Reduct-Error")
+
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			fmt.Printf("Failed to close response body: %v", err)
+		}
+	}()
+	// Read the response body
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return &model.APIError{
+			Message:  reductError,
+			Original: err,
+			Status:   resp.StatusCode,
+		}
+	}
+	// Check for non-OK status codes
+	if resp.StatusCode != http.StatusOK {
+		return &model.APIError{
+			Message:  reductError,
+			Original: err,
+			Status:   resp.StatusCode,
+		}
+	}
+	if responseData != nil && len(bodyBytes) > 0 {
+		// Unmarshal the response into the provided responseData interface
+		err := json.Unmarshal(bodyBytes, responseData)
+		if err != nil {
+			return &model.APIError{
+				Message:  reductError,
+				Original: err,
+				Status:   resp.StatusCode,
+			}
+		}
+	}
+	return nil
+}
 func (c *httpClient) Post(ctx context.Context, path string, requestBody, responseData any) error {
 	if c.client == nil {
 		return &model.APIError{
@@ -161,15 +267,12 @@ func (c *httpClient) Post(ctx context.Context, path string, requestBody, respons
 	c.setClientHeaders(req)
 	// Create an HTTP client and perform the request
 	resp, err := c.client.Do(req)
-	reductError := resp.Header.Get("X-Reduct-Error")
 
 	if err != nil {
-		return &model.APIError{
-			Message:  reductError,
-			Original: err,
-			Status:   resp.StatusCode,
-		}
+		return handleHTTPError(err)
 	}
+	reductError := resp.Header.Get("X-Reduct-Error")
+
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
 			fmt.Printf("Failed to close response body: %v", err)
@@ -206,6 +309,49 @@ func (c *httpClient) Post(ctx context.Context, path string, requestBody, respons
 	}
 	return nil
 }
+func handleHTTPError(err error) error {
+	var opErr *net.OpError
+	var urlErr *url.Error
+
+	switch {
+	case errors.As(err, &opErr):
+		return &model.APIError{
+			Message:  "network error",
+			Original: err,
+			Status:   ConnectionError,
+		}
+	case errors.As(err, &urlErr):
+		return &model.APIError{
+			Message:  "invalid url",
+			Original: err,
+			Status:   URLParseError,
+		}
+	case errors.Is(err, http.ErrServerClosed):
+		return &model.APIError{
+			Message:  "server closed",
+			Original: err,
+			Status:   ConnectionError,
+		}
+	case errors.Is(err, context.Canceled):
+		return &model.APIError{
+			Message:  "request canceled",
+			Original: err,
+			Status:   Interrupt,
+		}
+	case errors.Is(err, context.DeadlineExceeded):
+		return &model.APIError{
+			Message:  "request timed out",
+			Original: err,
+			Status:   Timeout,
+		}
+	default:
+		return &model.APIError{
+			Message:  err.Error(),
+			Original: err,
+			Status:   Unknown,
+		}
+	}
+}
 
 func (c *httpClient) Get(ctx context.Context, path string, responseData any) error {
 	if c.client == nil {
@@ -221,15 +367,12 @@ func (c *httpClient) Get(ctx context.Context, path string, responseData any) err
 	c.setClientHeaders(req)
 	// Create an HTTP client and perform the request
 	resp, err := c.client.Do(req)
-	reductError := resp.Header.Get("X-Reduct-Error")
 
 	if err != nil {
-		return &model.APIError{
-			Message:  reductError,
-			Original: err,
-			Status:   resp.StatusCode,
-		}
+		return handleHTTPError(err)
 	}
+	reductError := resp.Header.Get("X-Reduct-Error")
+
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
 			fmt.Printf("Failed to close response body: %v", err)
@@ -281,14 +424,12 @@ func (c *httpClient) Head(ctx context.Context, path string) error {
 	c.setClientHeaders(req)
 	// Create an HTTP client and perform the request
 	resp, err := c.client.Do(req)
-	reductError := resp.Header.Get("X-Reduct-Error")
+
 	if err != nil {
-		return &model.APIError{
-			Message:  reductError,
-			Original: err,
-			Status:   resp.StatusCode,
-		}
+		return handleHTTPError(err)
 	}
+	reductError := resp.Header.Get("X-Reduct-Error")
+
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
 			fmt.Printf("Failed to close response body: %v", err)
@@ -321,15 +462,12 @@ func (c *httpClient) Delete(ctx context.Context, path string) error {
 	c.setClientHeaders(req)
 	// Create an HTTP client and perform the request
 	resp, err := c.client.Do(req)
-	reductError := resp.Header.Get("X-Reduct-Error")
 
 	if err != nil {
-		return &model.APIError{
-			Message:  reductError,
-			Original: err,
-			Status:   resp.StatusCode,
-		}
+		return handleHTTPError(err)
 	}
+	reductError := resp.Header.Get("X-Reduct-Error")
+
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
 			fmt.Printf("Failed to close response body: %v", err)
@@ -346,4 +484,24 @@ func (c *httpClient) Delete(ctx context.Context, path string) error {
 	}
 
 	return nil
+}
+
+func (c *httpClient) Do(req *http.Request) (*http.Response, error) {
+	// set reques headers
+	c.setClientHeaders(req)
+	// Create an HTTP client and perform the Do
+	resp, err := c.client.Do(req)
+
+	if err != nil {
+		return nil, handleHTTPError(err)
+	}
+	reductError := resp.Header.Get("X-Reduct-Error")
+
+	if resp.StatusCode >= 300 {
+		return resp, model.APIError{
+			Status:  resp.StatusCode,
+			Message: reductError,
+		}
+	}
+	return resp, nil
 }

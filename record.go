@@ -1,0 +1,171 @@
+package reductgo
+
+import (
+	"bytes"
+	"fmt"
+	"io"
+	"reduct-go/httpclient"
+	"reduct-go/model"
+	"strconv"
+)
+
+type WriteOptions struct {
+	Timestamp   int64
+	ContentType string
+	Labels      LabelMap
+}
+
+type WritableRecord struct {
+	bucketName string
+	entryName  string
+	httpClient httpclient.HTTPClient
+	options    WriteOptions
+}
+
+func NewWritableRecord(bucketName string,
+	entryName string,
+	httpClient httpclient.HTTPClient,
+	options WriteOptions,
+) *WritableRecord {
+	return &WritableRecord{
+		bucketName: bucketName,
+		entryName:  entryName,
+		httpClient: httpClient,
+		options:    options,
+	}
+}
+
+func (w *WritableRecord) Write(data any, size int64) error {
+	if w.options.Timestamp == 0 {
+		return fmt.Errorf("timestamp must be set")
+	}
+	if data == nil {
+		return fmt.Errorf("no data to write")
+	}
+
+	var reader io.Reader
+	var contentLength int64
+	var err error
+
+	switch v := data.(type) {
+	case string:
+		reader = bytes.NewBufferString(v)
+		contentLength = int64(len(v))
+	case []byte:
+		reader = bytes.NewReader(v)
+		contentLength = int64(len(v))
+	case io.Reader:
+		reader = v
+		if size <= 0 {
+			return fmt.Errorf("stream data requires a valid size")
+		}
+		contentLength = size
+	default:
+		return fmt.Errorf("unsupported data type")
+	}
+
+	url := fmt.Sprintf("/b/%s/%s?ts=%d", w.bucketName, w.entryName, w.options.Timestamp)
+
+	req, err := w.httpClient.NewRequest("POST", url, reader)
+	if err != nil {
+		return err
+	}
+
+	req.Header.Set("Content-Type", w.options.ContentType)
+	req.Header.Set("Content-Length", strconv.FormatInt(contentLength, 10))
+
+	// Custom label headers
+	for k, v := range w.options.Labels {
+		req.Header.Set(fmt.Sprintf("x-reduct-label-%s", k), fmt.Sprint(v))
+	}
+
+	resp, err := w.httpClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 300 {
+		return model.APIError{
+			Status:  resp.StatusCode,
+			Message: resp.Header.Get("x-reduct-error"),
+		}
+	}
+
+	return nil
+}
+
+type ReadableRecord struct {
+	time        int64
+	size        int64
+	last        bool
+	stream      io.Reader
+	labels      LabelMap
+	contentType string
+}
+
+func NewReadableRecord(time int64,
+	size int64,
+	last bool,
+	stream io.Reader,
+	labels LabelMap,
+	contentType string,
+) *ReadableRecord {
+	if contentType == "" {
+		contentType = "application/octet-stream"
+	}
+	return &ReadableRecord{
+		time:        time,
+		size:        size,
+		last:        last,
+		stream:      stream,
+		labels:      labels,
+		contentType: contentType,
+	}
+}
+
+// Read reads the record from the stream.
+//
+// note: calling read on last record will return no error, but may return empty data.
+//
+// calling this method on a last record is not recommended, use Stream() instead.
+func (r *ReadableRecord) Read() ([]byte, error) {
+	// read from stream
+	data, err := io.ReadAll(r.stream)
+	if err != nil {
+		return nil, err
+	}
+	return data, nil
+}
+
+func (r *ReadableRecord) ReadAsString() (string, error) {
+	data, err := io.ReadAll(r.stream)
+	if err != nil {
+		return "", err
+	}
+	return string(data), nil
+}
+
+func (r *ReadableRecord) Stream() io.Reader {
+	return r.stream
+}
+
+func (r *ReadableRecord) IsLast() bool {
+	return r.last
+}
+
+func (r *ReadableRecord) Size() int64 {
+	return r.size
+}
+
+func (r *ReadableRecord) Labels() LabelMap {
+	return r.labels
+}
+
+func (r *ReadableRecord) ContentType() string {
+	return r.contentType
+}
+
+func (r *ReadableRecord) Time() int64 {
+	return r.time
+}
