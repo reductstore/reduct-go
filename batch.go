@@ -6,13 +6,14 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"reduct-go/httpclient"
-	"reduct-go/model"
 	"slices"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/reductstore/reduct-go/httpclient"
+	"github.com/reductstore/reduct-go/model"
 )
 
 type BatchType int

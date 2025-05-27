@@ -12,7 +12,7 @@ import (
 	"net/url"
 	"time"
 
-	"reduct-go/model"
+	"github.com/reductstore/reduct-go/model"
 )
 
 const (

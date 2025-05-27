@@ -14,8 +14,8 @@ import (
 	"sync"
 	"time"
 
-	"reduct-go/httpclient"
-	"reduct-go/model"
+	"github.com/reductstore/reduct-go/httpclient"
+	"github.com/reductstore/reduct-go/model"
 )
 
 type Bucket struct {

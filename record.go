@@ -4,9 +4,10 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"reduct-go/httpclient"
-	"reduct-go/model"
 	"strconv"
+
+	"github.com/reductstore/reduct-go/httpclient"
+	"github.com/reductstore/reduct-go/model"
 )
 
 type WriteOptions struct {

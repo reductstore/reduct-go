@@ -8,8 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"reduct-go/model"
-
+	"github.com/reductstore/reduct-go/model"
 	"github.com/stretchr/testify/assert"
 )
 

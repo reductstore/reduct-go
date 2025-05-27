@@ -1,4 +1,4 @@
-module reduct-go
+module github.com/reductstore/reduct-go
 
 go 1.24.1
 
