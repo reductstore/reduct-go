@@ -5,8 +5,7 @@ import (
 	"net/http"
 	"testing"
 
-	"reduct-go/model"
-
+	"github.com/reductstore/reduct-go/model"
 	"github.com/stretchr/testify/assert"
 )
 

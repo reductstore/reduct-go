@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"time"
 
-	"reduct-go/httpclient"
-	"reduct-go/model"
+	"github.com/reductstore/reduct-go/httpclient"
+	"github.com/reductstore/reduct-go/model"
 )
 
 var defaultClientTimeout = 60 * time.Second

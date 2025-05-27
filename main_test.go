@@ -8,8 +8,8 @@ import (
 	"os"
 	"testing"
 
-	"reduct-go/httpclient"
-	"reduct-go/model"
+	"github.com/reductstore/reduct-go/httpclient"
+	"github.com/reductstore/reduct-go/model"
 
 	"github.com/joho/godotenv"
 )
