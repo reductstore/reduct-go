@@ -3,8 +3,10 @@ package reductgo
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"testing"
+	"time"
 
 	"reduct-go/model"
 
@@ -107,8 +109,41 @@ func TestEntryRecordStreamWriterAndChunkedReader(t *testing.T) {
 	expectedJSON := `{"part": "one","more": 123,"nested": {"inner": "value"}}`
 	assert.JSONEq(t, expectedJSON, string(result))
 }
+
 func TestRemoveBucket(t *testing.T) {
 	// check if the bucket exists
 	err := mainTestBucket.Remove(context.Background())
 	assert.NoError(t, err)
+}
+
+func TestUpdateRecordLabels(t *testing.T) {
+	ctx := context.Background()
+	entry := "test-update-labels"
+
+	// First write a record with initial labels
+	now := time.Now().UTC().UnixMicro()
+	writer := mainTestBucket.BeginWrite(ctx, entry, &WriteOptions{
+		Timestamp: now,
+		Labels: LabelMap{
+			"initial": "value",
+		},
+	})
+	err := writer.Write([]byte("test data"), 9)
+	assert.NoError(t, err)
+
+	// Update the labels
+	newLabels := LabelMap{
+		"initial": "",          // This should remove the label
+		"updated": "new-value", // This should add a new label
+	}
+	err = mainTestBucket.Update(ctx, entry, now, newLabels)
+	assert.NoError(t, err)
+
+	// Verify the labels were updated correctly
+	tsStr := fmt.Sprintf("%d", now)
+	record, err := mainTestBucket.BeginRead(ctx, entry, &tsStr, true)
+	assert.NoError(t, err)
+	labels := record.Labels()
+	assert.NotContains(t, labels, "initial", "initial label should be removed")
+	assert.Equal(t, "new-value", labels["updated"], "updated label should be set")
 }

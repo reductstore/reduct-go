@@ -143,6 +143,7 @@ func (b *Bucket) readRecord(ctx context.Context, entry string, ts *string, head 
 
 	labels := make(map[string]any)
 	for key, values := range resp.Header {
+		key = strings.ToLower(key)
 		if strings.HasPrefix(key, "x-reduct-label-") {
 			labels[strings.TrimPrefix(key, "x-reduct-label-")] = values[0]
 		}
@@ -559,4 +560,45 @@ func ParseCSVRow(row string) CSVRowResult {
 	}
 
 	return result
+}
+
+// Update updates the labels of an existing record.
+// If a label has an empty string value, it will be removed.
+//
+// Parameters:
+//   - ctx: Context for cancellation and timeout control
+//   - entry: Name of the entry
+//   - ts: Timestamp of record in microseconds
+//   - labels: Labels to update
+func (b *Bucket) Update(ctx context.Context, entry string, ts int64, labels LabelMap) error {
+	headers := make(map[string]string)
+
+	for key, value := range labels {
+		headers[fmt.Sprintf("x-reduct-label-%s", key)] = fmt.Sprint(value)
+	}
+
+	path := fmt.Sprintf("/b/%s/%s?ts=%d", b.Name, entry, ts)
+	req, err := b.HTTPClient.NewRequestWithContext(ctx, http.MethodPatch, path, nil)
+	if err != nil {
+		return err
+	}
+
+	for key, value := range headers {
+		req.Header.Set(key, value)
+	}
+
+	resp, err := b.HTTPClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 300 {
+		return model.APIError{
+			Status:  resp.StatusCode,
+			Message: resp.Header.Get("x-reduct-error"),
+		}
+	}
+
+	return nil
 }
