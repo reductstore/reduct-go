@@ -15,6 +15,12 @@ var defaultClientTimeout = 60 * time.Second
 
 // this is a client for a ReductStore instance.
 type Client interface {
+	// Get Info
+	GetInfo(ctx context.Context) (model.ServerInfo, error)
+	// Check if the storage engine is working
+	IsLive(ctx context.Context) (bool, error)
+	// Get a list of the buckets with their stats
+	GetBuckets(ctx context.Context) ([]model.BucketInfo, error)
 	// Create a new bucket
 	CreateBucket(ctx context.Context, name string, settings model.BucketSetting) (Bucket, error)
 	// Create a new bucket if it doesn't exist and return it
@@ -56,6 +62,32 @@ func NewClient(url string, options ClientOptions) Client {
 	})
 
 	return client
+}
+
+func (c *ReductClient) GetInfo(ctx context.Context) (model.ServerInfo, error) {
+	var info model.ServerInfo
+	err := c.HTTPClient.Get(ctx, "/info", &info)
+	if err != nil {
+		return model.ServerInfo{}, model.APIError{Message: err.Error(), Original: err}
+	}
+	return info, nil
+}
+
+func (c *ReductClient) IsLive(ctx context.Context) (bool, error) {
+	err := c.HTTPClient.Head(ctx, "/alive")
+	if err != nil {
+		return false, model.APIError{Message: err.Error(), Original: err}
+	}
+	return true, nil
+}
+
+func (c *ReductClient) GetBuckets(ctx context.Context) ([]model.BucketInfo, error) {
+	var buckets map[string][]model.BucketInfo
+	err := c.HTTPClient.Get(ctx, "/list", &buckets)
+	if err != nil {
+		return nil, model.APIError{Message: err.Error(), Original: err}
+	}
+	return buckets["buckets"], nil
 }
 
 func (c *ReductClient) GetBucket(ctx context.Context, name string) (Bucket, error) {
