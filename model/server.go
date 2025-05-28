@@ -1,11 +1,11 @@
 package model
 
-// ServerDefaults represents default settings for the server
+// ServerDefaults represents default settings for the server.
 type ServerDefaults struct {
 	Bucket BucketSetting `json:"bucket"`
 }
 
-// LicenseInfo represents license information for the server
+// LicenseInfo represents license information for the server.
 type LicenseInfo struct {
 	// Licensee name
 	Licensee string `json:"licensee"`
@@ -23,7 +23,7 @@ type LicenseInfo struct {
 	Fingerprint string `json:"fingerprint"`
 }
 
-// ServerInfo represents information about the storage server
+// ServerInfo represents information about the storage server.
 type ServerInfo struct {
 	// Version storage server
 	Version string `json:"version"`

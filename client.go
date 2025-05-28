@@ -64,7 +64,7 @@ func NewClient(url string, options ClientOptions) Client {
 	return client
 }
 
-// GetInfo returns information about the server
+// GetInfo returns information about the server.
 func (c *ReductClient) GetInfo(ctx context.Context) (model.ServerInfo, error) {
 	var info model.ServerInfo
 	err := c.HTTPClient.Get(ctx, "/info", &info)
@@ -74,7 +74,7 @@ func (c *ReductClient) GetInfo(ctx context.Context) (model.ServerInfo, error) {
 	return info, nil
 }
 
-// IsLive checks if the server is live
+// IsLive checks if the server is live.
 func (c *ReductClient) IsLive(ctx context.Context) (bool, error) {
 	err := c.HTTPClient.Head(ctx, "/alive")
 	if err != nil {
@@ -83,7 +83,7 @@ func (c *ReductClient) IsLive(ctx context.Context) (bool, error) {
 	return true, nil
 }
 
-// GetBuckets returns a list of buckets with their stats
+// GetBuckets returns a list of buckets with their stats.
 func (c *ReductClient) GetBuckets(ctx context.Context) ([]model.BucketInfo, error) {
 	var buckets map[string][]model.BucketInfo
 	err := c.HTTPClient.Get(ctx, "/list", &buckets)
@@ -93,6 +93,7 @@ func (c *ReductClient) GetBuckets(ctx context.Context) ([]model.BucketInfo, erro
 	return buckets["buckets"], nil
 }
 
+// GetBucket returns a bucket.
 func (c *ReductClient) GetBucket(ctx context.Context, name string) (Bucket, error) {
 	err := c.HTTPClient.Get(ctx, fmt.Sprintf(`/b/%s`, name), nil)
 	if err != nil {
@@ -101,6 +102,7 @@ func (c *ReductClient) GetBucket(ctx context.Context, name string) (Bucket, erro
 	return NewBucket(name, c.HTTPClient), nil
 }
 
+// CreateBucket creates a new bucket.
 func (c *ReductClient) CreateBucket(ctx context.Context, name string, settings model.BucketSetting) (Bucket, error) {
 	err := c.HTTPClient.Post(ctx, fmt.Sprintf("/b/%s", name), settings, nil)
 	if err != nil {
@@ -110,6 +112,7 @@ func (c *ReductClient) CreateBucket(ctx context.Context, name string, settings m
 	return NewBucket(name, c.HTTPClient), err
 }
 
+// CreateOrGetBucket creates a new bucket if it doesn't exist and returns it.
 func (c *ReductClient) CreateOrGetBucket(ctx context.Context, name string, settings model.BucketSetting) (Bucket, error) {
 	err := c.HTTPClient.Post(ctx, fmt.Sprintf("/b/%s", name), settings, nil)
 	if err != nil {
@@ -125,6 +128,7 @@ func (c *ReductClient) CreateOrGetBucket(ctx context.Context, name string, setti
 	return NewBucket(name, c.HTTPClient), err
 }
 
+// CheckBucketExists checks if a bucket exists.
 func (c *ReductClient) CheckBucketExists(ctx context.Context, name string) (bool, error) {
 	err := c.HTTPClient.Head(ctx, fmt.Sprintf(`/b/%s`, name))
 	if err != nil {
@@ -133,6 +137,7 @@ func (c *ReductClient) CheckBucketExists(ctx context.Context, name string) (bool
 	return true, nil
 }
 
+// RemoveBucket removes a bucket.
 func (c *ReductClient) RemoveBucket(ctx context.Context, name string) error {
 	return c.HTTPClient.Delete(ctx, fmt.Sprintf(`/b/%s`, name))
 }
