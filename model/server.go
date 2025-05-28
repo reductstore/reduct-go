@@ -12,7 +12,7 @@ type LicenseInfo struct {
 	// Invoice number
 	Invoice string `json:"invoice"`
 	// Expiry date as unix timestamp in milliseconds
-	ExpiryDate int64 `json:"expiry_date"`
+	ExpiryDate uint64 `json:"expiry_date"`
 	// Plan name
 	Plan string `json:"plan"`
 	// Number of devices
@@ -30,13 +30,13 @@ type ServerInfo struct {
 	// Number of buckets
 	BucketCount int64 `json:"bucket_count"`
 	// Stored data in bytes
-	Usage int64 `json:"usage"`
+	Usage uint64 `json:"usage"`
 	// Server uptime in seconds
-	Uptime int64 `json:"uptime"`
+	Uptime uint64 `json:"uptime"`
 	// Unix timestamp of the oldest record in microseconds
-	OldestRecord int64 `json:"oldest_record"`
+	OldestRecord uint64 `json:"oldest_record"`
 	// Unix timestamp of the latest record in microseconds
-	LatestRecord int64 `json:"latest_record"`
+	LatestRecord uint64 `json:"latest_record"`
 	// License information
 	License *LicenseInfo `json:"license,omitempty"`
 	// Default settings
