@@ -19,6 +19,49 @@ func TestCreateOrGetBucket_Success(t *testing.T) {
 	assert.Equal(t, bucket.Name, mainTestBucket.Name)
 }
 
+// teardown function to remove the token
+func teardownToken(tokenName string) {
+	_ = client.RemoveToken(context.Background(), tokenName) // nolint:errcheck // ignore error
+}
+
+func TestTokenAPI(t *testing.T) {
+	tokenName := "test-token"
+	teardownToken(tokenName)
+	t.Run("Create Token", func(t *testing.T) {
+		token, err := client.CreateToken(context.Background(), tokenName, model.TokenPermissions{
+			FullAccess: true,
+		})
+		assert.NoError(t, err)
+		assert.NotEmpty(t, token)
+	})
+	t.Run("Get Token", func(t *testing.T) {
+		token, err := client.GetToken(context.Background(), tokenName)
+		assert.NoError(t, err)
+		assert.NotEmpty(t, token)
+	})
+	// t.Run("Update Token", func(t *testing.T) {
+	// 	token, err := client.UpdateToken(context.Background(), tokenName, model.TokenPermissions{
+	// 		FullAccess: false,
+	// 	})
+	// 	assert.NoError(t, err)
+	// 	assert.NotEmpty(t, token)
+	// })
+	t.Run("Get Current Token", func(t *testing.T) {
+		token, err := client.GetCurrentToken(context.Background())
+		assert.NoError(t, err)
+		assert.NotEmpty(t, token)
+	})
+	t.Run("Remove Token", func(t *testing.T) {
+		err := client.RemoveToken(context.Background(), tokenName)
+		assert.NoError(t, err)
+	})
+	// check if the token is removed
+	t.Run("Check if Token is Removed", func(t *testing.T) {
+		_, err := client.GetToken(context.Background(), tokenName)
+		assert.Error(t, err)
+	})
+}
+
 // Creating a new bucket should succeed.
 func TestCreateBucket_Success(t *testing.T) {
 	ctx := context.Background()

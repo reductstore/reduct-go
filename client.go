@@ -4,12 +4,18 @@ package reductgo
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/reductstore/reduct-go/httpclient"
 	"github.com/reductstore/reduct-go/model"
 )
+
+type tokenInfo struct {
+	Value     string `json:"value"`
+	CreatedAt string `json:"created_at"`
+}
 
 var defaultClientTimeout = 60 * time.Second
 
@@ -25,6 +31,18 @@ type Client interface {
 	CheckBucketExists(ctx context.Context, name string) (bool, error)
 	// Remove a bucket
 	RemoveBucket(ctx context.Context, name string) error
+	// Get a list of Tokens
+	GetTokens(ctx context.Context) ([]model.Token, error)
+	// Show Information about a Token
+	GetToken(ctx context.Context, name string) (model.Token, error)
+	// Create a New Token
+	CreateToken(ctx context.Context, name string, permissions model.TokenPermissions) (string, error)
+	// Update a Token
+	UpdateToken(ctx context.Context, name string, permissions model.TokenPermissions) (string, error)
+	// Remove a Token
+	RemoveToken(ctx context.Context, name string) error
+	// Get Full Information about Current API Token
+	GetCurrentToken(ctx context.Context) (model.Token, error)
 }
 
 type ClientOptions struct {
@@ -40,6 +58,7 @@ type ReductClient struct {
 	HTTPClient httpclient.HTTPClient
 }
 
+// NewClient creates a new ReductClient
 func NewClient(url string, options ClientOptions) Client {
 	if options.Timeout.Seconds() == 0 {
 		options.Timeout = defaultClientTimeout
@@ -58,6 +77,7 @@ func NewClient(url string, options ClientOptions) Client {
 	return client
 }
 
+// GetBucket returns a bucket
 func (c *ReductClient) GetBucket(ctx context.Context, name string) (Bucket, error) {
 	err := c.HTTPClient.Get(ctx, fmt.Sprintf(`/b/%s`, name), nil)
 	if err != nil {
@@ -66,6 +86,7 @@ func (c *ReductClient) GetBucket(ctx context.Context, name string) (Bucket, erro
 	return NewBucket(name, c.HTTPClient), nil
 }
 
+// CreateBucket creates a new bucket
 func (c *ReductClient) CreateBucket(ctx context.Context, name string, settings model.BucketSetting) (Bucket, error) {
 	err := c.HTTPClient.Post(ctx, fmt.Sprintf("/b/%s", name), settings, nil)
 	if err != nil {
@@ -75,6 +96,7 @@ func (c *ReductClient) CreateBucket(ctx context.Context, name string, settings m
 	return NewBucket(name, c.HTTPClient), err
 }
 
+// CreateOrGetBucket creates a new bucket if it doesn't exist and returns it
 func (c *ReductClient) CreateOrGetBucket(ctx context.Context, name string, settings model.BucketSetting) (Bucket, error) {
 	err := c.HTTPClient.Post(ctx, fmt.Sprintf("/b/%s", name), settings, nil)
 	if err != nil {
@@ -90,6 +112,7 @@ func (c *ReductClient) CreateOrGetBucket(ctx context.Context, name string, setti
 	return NewBucket(name, c.HTTPClient), err
 }
 
+// CheckBucketExists checks if a bucket exists
 func (c *ReductClient) CheckBucketExists(ctx context.Context, name string) (bool, error) {
 	err := c.HTTPClient.Head(ctx, fmt.Sprintf(`/b/%s`, name))
 	if err != nil {
@@ -98,6 +121,73 @@ func (c *ReductClient) CheckBucketExists(ctx context.Context, name string) (bool
 	return true, nil
 }
 
+// RemoveBucket removes a bucket
 func (c *ReductClient) RemoveBucket(ctx context.Context, name string) error {
 	return c.HTTPClient.Delete(ctx, fmt.Sprintf(`/b/%s`, name))
+}
+
+// GetTokens returns a list of tokens
+func (c *ReductClient) GetTokens(ctx context.Context) ([]model.Token, error) {
+	var tokens map[string][]model.Token
+	err := c.HTTPClient.Get(ctx, "/tokens", &tokens)
+	if err != nil {
+		return nil, model.APIError{Message: err.Error(), Original: err}
+	}
+	return tokens["tokens"], nil
+}
+
+// GetToken returns information about a token
+func (c *ReductClient) GetToken(ctx context.Context, name string) (model.Token, error) {
+	var token model.Token
+	err := c.HTTPClient.Get(ctx, fmt.Sprintf("/tokens/%s", name), &token)
+	if err != nil {
+		return model.Token{}, model.APIError{Message: err.Error(), Original: err}
+	}
+	return token, nil
+}
+
+// CreateToken creates a new token
+func (c *ReductClient) CreateToken(ctx context.Context, name string, permissions model.TokenPermissions) (string, error) {
+
+	var token tokenInfo
+	err := c.HTTPClient.Post(ctx, fmt.Sprintf("/tokens/%s", name), permissions, &token)
+	if err != nil {
+		return "", model.APIError{Message: err.Error(), Original: err}
+	}
+	return token.Value, nil
+}
+
+// UpdateToken updates a token
+func (c *ReductClient) UpdateToken(ctx context.Context, name string, permissions model.TokenPermissions) (string, error) {
+	var token tokenInfo
+	err := c.HTTPClient.Put(ctx, fmt.Sprintf("/tokens/%s", name), permissions, &token)
+	if err != nil {
+		return "", model.APIError{Message: err.Error(), Original: err}
+	}
+	return token.Value, nil
+}
+
+// RemoveToken removes a token
+func (c *ReductClient) RemoveToken(ctx context.Context, name string) error {
+	err := c.HTTPClient.Delete(ctx, fmt.Sprintf("/tokens/%s", name))
+	if err != nil {
+		apiErr := &model.APIError{}
+		if errors.As(err, &apiErr) {
+			if apiErr.Status == 404 {
+				return nil
+			}
+		}
+		return err
+	}
+	return nil
+}
+
+// GetCurrentToken returns the current token
+func (c *ReductClient) GetCurrentToken(ctx context.Context) (model.Token, error) {
+	var token model.Token
+	err := c.HTTPClient.Get(ctx, "/me", &token)
+	if err != nil {
+		return model.Token{}, model.APIError{Message: err.Error(), Original: err}
+	}
+	return token, nil
 }
