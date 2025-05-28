@@ -64,6 +64,7 @@ func NewClient(url string, options ClientOptions) Client {
 	return client
 }
 
+// GetInfo returns information about the server
 func (c *ReductClient) GetInfo(ctx context.Context) (model.ServerInfo, error) {
 	var info model.ServerInfo
 	err := c.HTTPClient.Get(ctx, "/info", &info)
@@ -73,6 +74,7 @@ func (c *ReductClient) GetInfo(ctx context.Context) (model.ServerInfo, error) {
 	return info, nil
 }
 
+// IsLive checks if the server is live
 func (c *ReductClient) IsLive(ctx context.Context) (bool, error) {
 	err := c.HTTPClient.Head(ctx, "/alive")
 	if err != nil {
@@ -81,6 +83,7 @@ func (c *ReductClient) IsLive(ctx context.Context) (bool, error) {
 	return true, nil
 }
 
+// GetBuckets returns a list of buckets with their stats
 func (c *ReductClient) GetBuckets(ctx context.Context) ([]model.BucketInfo, error) {
 	var buckets map[string][]model.BucketInfo
 	err := c.HTTPClient.Get(ctx, "/list", &buckets)
