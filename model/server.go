@@ -12,7 +12,7 @@ type LicenseInfo struct {
 	// Invoice number
 	Invoice string `json:"invoice"`
 	// Expiry date as unix timestamp in milliseconds
-	ExpiryDate uint64 `json:"expiry_date"`
+	ExpiryDate string `json:"expiry_date"`
 	// Plan name
 	Plan string `json:"plan"`
 	// Number of devices
