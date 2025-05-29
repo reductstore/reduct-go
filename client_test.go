@@ -61,6 +61,23 @@ func TestTokenAPI(t *testing.T) {
 		assert.Error(t, err)
 	})
 }
+func TestGetInfo(t *testing.T) {
+	info, err := client.GetInfo(context.Background())
+	assert.NoError(t, err)
+	assert.NotNil(t, info)
+}
+
+func TestGetBuckets(t *testing.T) {
+	buckets, err := client.GetBuckets(context.Background())
+	assert.NoError(t, err)
+	assert.NotNil(t, buckets)
+}
+
+func TestHealth(t *testing.T) {
+	isLive, err := client.IsLive(context.Background())
+	assert.NoError(t, err)
+	assert.True(t, isLive)
+}
 
 // Creating a new bucket should succeed.
 func TestCreateBucket_Success(t *testing.T) {
