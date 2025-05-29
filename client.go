@@ -16,9 +16,9 @@ var defaultClientTimeout = 60 * time.Second
 // this is a client for a ReductStore instance.
 type Client interface {
 	// Create a new bucket
-	CreateBucket(ctx context.Context, name string, settings model.BucketSetting) (Bucket, error)
+	CreateBucket(ctx context.Context, name string, settings *model.BucketSetting) (Bucket, error)
 	// Create a new bucket if it doesn't exist and return it
-	CreateOrGetBucket(ctx context.Context, name string, settings model.BucketSetting) (Bucket, error)
+	CreateOrGetBucket(ctx context.Context, name string, settings *model.BucketSetting) (Bucket, error)
 	// Get a bucket
 	GetBucket(ctx context.Context, name string) (Bucket, error)
 	// Check if a bucket exists
@@ -66,7 +66,7 @@ func (c *ReductClient) GetBucket(ctx context.Context, name string) (Bucket, erro
 	return NewBucket(name, c.HTTPClient), nil
 }
 
-func (c *ReductClient) CreateBucket(ctx context.Context, name string, settings model.BucketSetting) (Bucket, error) {
+func (c *ReductClient) CreateBucket(ctx context.Context, name string, settings *model.BucketSetting) (Bucket, error) {
 	err := c.HTTPClient.Post(ctx, fmt.Sprintf("/b/%s", name), settings, nil)
 	if err != nil {
 		return Bucket{}, err
@@ -75,7 +75,7 @@ func (c *ReductClient) CreateBucket(ctx context.Context, name string, settings m
 	return NewBucket(name, c.HTTPClient), err
 }
 
-func (c *ReductClient) CreateOrGetBucket(ctx context.Context, name string, settings model.BucketSetting) (Bucket, error) {
+func (c *ReductClient) CreateOrGetBucket(ctx context.Context, name string, settings *model.BucketSetting) (Bucket, error) {
 	err := c.HTTPClient.Post(ctx, fmt.Sprintf("/b/%s", name), settings, nil)
 	if err != nil {
 		if apiErr, ok := err.(*model.APIError); ok { //nolint:errorlint //error.As does not give access to status check

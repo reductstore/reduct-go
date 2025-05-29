@@ -14,7 +14,7 @@ func TestCreateOrGetBucket_Success(t *testing.T) {
 		WithQuotaSize(1024 * 1024 * 1024).
 		WithQuotaType(model.QuotaTypeFifo).
 		WithMaxBlockRecords(1000).WithMaxBlockSize(1024).Build()
-	bucket, err := client.CreateOrGetBucket(context.Background(), mainTestBucket.Name, settings)
+	bucket, err := client.CreateOrGetBucket(context.Background(), mainTestBucket.Name, &settings)
 	assert.NoError(t, err)
 	assert.Equal(t, bucket.Name, mainTestBucket.Name)
 }
@@ -28,7 +28,7 @@ func TestCreateBucket_Success(t *testing.T) {
 		WithQuotaSize(1024 * 1024 * 1024).
 		WithQuotaType(model.QuotaTypeFifo).
 		WithMaxBlockRecords(1000).WithMaxBlockSize(1024).Build()
-	info, err := client.CreateBucket(ctx, newBucketName, settings)
+	info, err := client.CreateBucket(ctx, newBucketName, &settings)
 	assert.NoError(t, err)
 	assert.Equal(t, newBucketName, info.Name)
 
@@ -45,11 +45,11 @@ func TestCreateBucket_Fail(t *testing.T) {
 		WithQuotaType(model.QuotaTypeFifo).
 		WithMaxBlockRecords(1000).WithMaxBlockSize(1024).Build()
 	bucketName := getRandomBucketName()
-	_, err := client.CreateBucket(ctx, bucketName, settings)
+	_, err := client.CreateBucket(ctx, bucketName, &settings)
 
 	assert.NoError(t, err)
 	// trying to create existing bucket again
-	_, err = client.CreateBucket(ctx, bucketName, settings)
+	_, err = client.CreateBucket(ctx, bucketName, &settings)
 	assert.Error(t, err)
 
 	// remove bucket
