@@ -12,3 +12,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Implement Bucket API [PR-10](https://github.com/reductstore/reduct-go/pull/10)
 * Implement Entry API [PR-12](https://github.com/reductstore/reduct-go/pull/12)
 * Improvement for Bucket API [PR-18](https://github.com/reductstore/reduct-go/pull/18)
+* Implement Server API [PR-14](https://github.com/reductstore/reduct-go/pull/14)
