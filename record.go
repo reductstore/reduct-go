@@ -14,6 +14,7 @@ type WriteOptions struct {
 	Timestamp   int64
 	ContentType string
 	Labels      LabelMap
+	Size        int64
 }
 
 type WritableRecord struct {
@@ -21,6 +22,11 @@ type WritableRecord struct {
 	entryName  string
 	httpClient httpclient.HTTPClient
 	options    WriteOptions
+}
+
+func (w *WritableRecord) WithSize(size int64) *WritableRecord {
+	w.options.Size = size
+	return w
 }
 
 func NewWritableRecord(bucketName string,
@@ -36,7 +42,12 @@ func NewWritableRecord(bucketName string,
 	}
 }
 
-func (w *WritableRecord) Write(data any, size int64) error {
+// Write writes the record to the bucket.
+//
+// data can be a string, []byte, or io.Reader.
+// size is the size of the data to write.
+// if size is not provided, it will be calculated from the data.
+func (w *WritableRecord) Write(data any) error {
 	if w.options.Timestamp == 0 {
 		return fmt.Errorf("timestamp must be set")
 	}
@@ -57,10 +68,9 @@ func (w *WritableRecord) Write(data any, size int64) error {
 		contentLength = int64(len(v))
 	case io.Reader:
 		reader = v
-		if size <= 0 {
-			return fmt.Errorf("stream data requires a valid size")
+		if w.options.Size != 0 {
+			contentLength = w.options.Size
 		}
-		contentLength = size
 	default:
 		return fmt.Errorf("unsupported data type")
 	}
