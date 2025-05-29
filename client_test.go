@@ -19,9 +19,8 @@ func TestCreateOrGetBucket_Success(t *testing.T) {
 	assert.Equal(t, bucket.Name, mainTestBucket.Name)
 }
 
-// teardown function to remove the token
 func teardownToken(tokenName string) {
-	_ = client.RemoveToken(context.Background(), tokenName) // nolint:errcheck // ignore error
+	_ = client.RemoveToken(context.Background(), tokenName) //nolint:errcheck // ignore error.
 }
 
 func TestTokenAPI(t *testing.T) {
@@ -39,13 +38,7 @@ func TestTokenAPI(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotEmpty(t, token)
 	})
-	// t.Run("Update Token", func(t *testing.T) {
-	// 	token, err := client.UpdateToken(context.Background(), tokenName, model.TokenPermissions{
-	// 		FullAccess: false,
-	// 	})
-	// 	assert.NoError(t, err)
-	// 	assert.NotEmpty(t, token)
-	// })
+
 	t.Run("Get Current Token", func(t *testing.T) {
 		token, err := client.GetCurrentToken(context.Background())
 		assert.NoError(t, err)

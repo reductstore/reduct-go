@@ -43,8 +43,6 @@ type Client interface {
 	GetToken(ctx context.Context, name string) (model.Token, error)
 	// Create a New Token
 	CreateToken(ctx context.Context, name string, permissions model.TokenPermissions) (string, error)
-	// Update a Token
-	UpdateToken(ctx context.Context, name string, permissions model.TokenPermissions) (string, error)
 	// Remove a Token
 	RemoveToken(ctx context.Context, name string) error
 	// Get Full Information about Current API Token
@@ -64,7 +62,7 @@ type ReductClient struct {
 	HTTPClient httpclient.HTTPClient
 }
 
-// NewClient creates a new ReductClient
+// NewClient creates a new ReductClient.
 func NewClient(url string, options ClientOptions) Client {
 	if options.Timeout.Seconds() == 0 {
 		options.Timeout = defaultClientTimeout
@@ -161,7 +159,7 @@ func (c *ReductClient) RemoveBucket(ctx context.Context, name string) error {
 	return c.HTTPClient.Delete(ctx, fmt.Sprintf(`/b/%s`, name))
 }
 
-// GetTokens returns a list of tokens
+// GetTokens returns a list of tokens.
 func (c *ReductClient) GetTokens(ctx context.Context) ([]model.Token, error) {
 	var tokens map[string][]model.Token
 	err := c.HTTPClient.Get(ctx, "/tokens", &tokens)
@@ -171,7 +169,7 @@ func (c *ReductClient) GetTokens(ctx context.Context) ([]model.Token, error) {
 	return tokens["tokens"], nil
 }
 
-// GetToken returns information about a token
+// GetToken returns information about a token.
 func (c *ReductClient) GetToken(ctx context.Context, name string) (model.Token, error) {
 	var token model.Token
 	err := c.HTTPClient.Get(ctx, fmt.Sprintf("/tokens/%s", name), &token)
@@ -181,7 +179,7 @@ func (c *ReductClient) GetToken(ctx context.Context, name string) (model.Token, 
 	return token, nil
 }
 
-// CreateToken creates a new token
+// CreateToken creates a new token.
 func (c *ReductClient) CreateToken(ctx context.Context, name string, permissions model.TokenPermissions) (string, error) {
 
 	var token tokenInfo
@@ -192,17 +190,7 @@ func (c *ReductClient) CreateToken(ctx context.Context, name string, permissions
 	return token.Value, nil
 }
 
-// UpdateToken updates a token
-func (c *ReductClient) UpdateToken(ctx context.Context, name string, permissions model.TokenPermissions) (string, error) {
-	var token tokenInfo
-	err := c.HTTPClient.Put(ctx, fmt.Sprintf("/tokens/%s", name), permissions, &token)
-	if err != nil {
-		return "", model.APIError{Message: err.Error(), Original: err}
-	}
-	return token.Value, nil
-}
-
-// RemoveToken removes a token
+// RemoveToken removes a token.
 func (c *ReductClient) RemoveToken(ctx context.Context, name string) error {
 	err := c.HTTPClient.Delete(ctx, fmt.Sprintf("/tokens/%s", name))
 	if err != nil {
@@ -217,7 +205,7 @@ func (c *ReductClient) RemoveToken(ctx context.Context, name string) error {
 	return nil
 }
 
-// GetCurrentToken returns the current token
+// GetCurrentToken returns the current token.
 func (c *ReductClient) GetCurrentToken(ctx context.Context) (model.Token, error) {
 	var token model.Token
 	err := c.HTTPClient.Get(ctx, "/me", &token)
