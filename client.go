@@ -152,7 +152,7 @@ func (c *ReductClient) RemoveBucket(ctx context.Context, name string) error {
 	return c.HTTPClient.Delete(ctx, fmt.Sprintf(`/b/%s`, name))
 }
 
-// GetReplicationTasks returns a list of replication tasks
+// GetReplicationTasks returns a list of replication tasks.
 func (c *ReductClient) GetReplicationTasks(ctx context.Context) ([]model.ReplicationInfo, error) {
 	var tasks map[string][]model.ReplicationInfo
 	err := c.HTTPClient.Get(ctx, "/replications", &tasks)
@@ -162,7 +162,7 @@ func (c *ReductClient) GetReplicationTasks(ctx context.Context) ([]model.Replica
 	return tasks["replications"], nil
 }
 
-// GetReplicationTask returns a replication task
+// GetReplicationTask returns a replication task.
 func (c *ReductClient) GetReplicationTask(ctx context.Context, name string) (model.FullReplicationInfo, error) {
 	var task model.FullReplicationInfo
 	err := c.HTTPClient.Get(ctx, fmt.Sprintf("/replications/%s", name), &task)
@@ -172,7 +172,7 @@ func (c *ReductClient) GetReplicationTask(ctx context.Context, name string) (mod
 	return task, nil
 }
 
-// CreateReplicationTask creates a new replication task
+// CreateReplicationTask creates a new replication task.
 func (c *ReductClient) CreateReplicationTask(ctx context.Context, name string, task model.ReplicationSettings) error {
 	// validate the task
 	if task.SrcBucket == "" {
@@ -195,7 +195,7 @@ func (c *ReductClient) CreateReplicationTask(ctx context.Context, name string, t
 	return nil
 }
 
-// UpdateReplicationTask updates an existing replication task
+// UpdateReplicationTask updates an existing replication task.
 func (c *ReductClient) UpdateReplicationTask(ctx context.Context, name string, task model.ReplicationSettings) error {
 	var fullTask model.FullReplicationInfo
 	if name == "" {
@@ -217,7 +217,7 @@ func (c *ReductClient) UpdateReplicationTask(ctx context.Context, name string, t
 	return nil
 }
 
-// RemoveReplicationTask removes a replication task
+// RemoveReplicationTask removes a replication task.
 func (c *ReductClient) RemoveReplicationTask(ctx context.Context, name string) error {
 	return c.HTTPClient.Delete(ctx, fmt.Sprintf("/replications/%s", name))
 }

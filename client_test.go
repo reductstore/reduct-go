@@ -64,15 +64,15 @@ func TestReplicationAPI(t *testing.T) {
 		DstHost:   "http://localhost:8383",
 	}
 	// create the source bucket
-	client.CreateBucket(ctx, sourceBucketName, model.NewBucketSettingBuilder().
-		WithQuotaSize(1024*1024*1024).
-		WithQuotaType(model.QuotaTypeFifo).
-		WithMaxBlockRecords(1000).WithMaxBlockSize(1024).Build())
+	_, _ = client.CreateBucket(ctx, sourceBucketName, model.NewBucketSettingBuilder(). //nolint:errcheck // ignore error
+												WithQuotaSize(1024*1024*1024).
+												WithQuotaType(model.QuotaTypeFifo).
+												WithMaxBlockRecords(1000).WithMaxBlockSize(1024).Build())
 	// create the destination bucket
-	client.CreateBucket(ctx, destinationBucketName, model.NewBucketSettingBuilder().
-		WithQuotaSize(1024*1024*1024).
-		WithQuotaType(model.QuotaTypeFifo).
-		WithMaxBlockRecords(1000).WithMaxBlockSize(1024).Build())
+	_, _ = client.CreateBucket(ctx, destinationBucketName, model.NewBucketSettingBuilder(). //nolint:errcheck // ignore error
+												WithQuotaSize(1024*1024*1024).
+												WithQuotaType(model.QuotaTypeFifo).
+												WithMaxBlockRecords(1000).WithMaxBlockSize(1024).Build())
 
 	t.Run("CreateReplicationTask", func(t *testing.T) {
 		err := client.CreateReplicationTask(ctx, "test-replication", task)

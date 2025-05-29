@@ -1,6 +1,6 @@
 package model
 
-// ReplicationSettings represents the settings for replication
+// ReplicationSettings represents the settings for replication.
 type ReplicationSettings struct {
 	// Source bucket. Must exist.
 	SrcBucket string `json:"src_bucket"`
@@ -28,7 +28,7 @@ type ReplicationSettings struct {
 	When any `json:"when,omitempty"`
 }
 
-// ReplicationInfo represents basic information about a replication
+// ReplicationInfo represents basic information about a replication.
 type ReplicationInfo struct {
 	// Name of the replication
 	Name string `json:"name"`
@@ -40,22 +40,7 @@ type ReplicationInfo struct {
 	PendingRecords int64 `json:"pending_records"`
 }
 
-// ParseReplicationInfo creates a ReplicationInfo struct from a map
-func ParseReplicationInfo(data map[string]any) *ReplicationInfo {
-	pendingRecords := int64(0)
-	if records, ok := data["pending_records"].(float64); ok {
-		pendingRecords = int64(records)
-	}
-
-	return &ReplicationInfo{
-		Name:           data["name"].(string),
-		IsActive:       data["is_active"].(bool),
-		IsProvisioned:  data["is_provisioned"].(bool),
-		PendingRecords: pendingRecords,
-	}
-}
-
-// FullReplicationInfo represents complete information about a replication
+// FullReplicationInfo represents complete information about a replication.
 type FullReplicationInfo struct {
 	// Basic replication information
 	Info *ReplicationInfo `json:"info"`
