@@ -103,13 +103,13 @@ func TestReplicationAPI(t *testing.T) {
 		WithQuotaSize(1024 * 1024 * 1024).
 		WithQuotaType(model.QuotaTypeFifo).
 		WithMaxBlockRecords(1000).WithMaxBlockSize(1024).Build()
-	_, _ = client.CreateBucket(ctx, sourceBucketName, &settings)
+	_, _ = client.CreateBucket(ctx, sourceBucketName, &settings) //nolint:errcheck // ignore error
 	// create the destination bucket
 	settings = model.NewBucketSettingBuilder().
 		WithQuotaSize(1024 * 1024 * 1024).
 		WithQuotaType(model.QuotaTypeFifo).
 		WithMaxBlockRecords(1000).WithMaxBlockSize(1024).Build()
-	_, _ = client.CreateBucket(ctx, destinationBucketName, &settings)
+	_, _ = client.CreateBucket(ctx, destinationBucketName, &settings) //nolint:errcheck // ignore error
 
 	t.Run("CreateReplicationTask", func(t *testing.T) {
 		err := client.CreateReplicationTask(ctx, "test-replication", task)
