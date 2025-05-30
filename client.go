@@ -47,6 +47,16 @@ type Client interface {
 	RemoveToken(ctx context.Context, name string) error
 	// Get Full Information about Current API Token
 	GetCurrentToken(ctx context.Context) (model.Token, error)
+	// Get a list of Replication Tasks
+	GetReplicationTasks(ctx context.Context) ([]model.ReplicationInfo, error)
+	// Get a Replication Task
+	GetReplicationTask(ctx context.Context, name string) (model.FullReplicationInfo, error)
+	// Create a Replication Task
+	CreateReplicationTask(ctx context.Context, name string, task model.ReplicationSettings) error
+	// Update a Replication Task
+	UpdateReplicationTask(ctx context.Context, name string, task model.ReplicationSettings) error
+	// Remove a Replication Task
+	RemoveReplicationTask(ctx context.Context, name string) error
 }
 
 type ClientOptions struct {
@@ -211,4 +221,74 @@ func (c *ReductClient) GetCurrentToken(ctx context.Context) (model.Token, error)
 		return model.Token{}, model.APIError{Message: err.Error(), Original: err}
 	}
 	return token, nil
+}
+
+// GetReplicationTasks returns a list of replication tasks.
+func (c *ReductClient) GetReplicationTasks(ctx context.Context) ([]model.ReplicationInfo, error) {
+	var tasks map[string][]model.ReplicationInfo
+	err := c.HTTPClient.Get(ctx, "/replications", &tasks)
+	if err != nil {
+		return nil, err
+	}
+	return tasks["replications"], nil
+}
+
+// GetReplicationTask returns a replication task.
+func (c *ReductClient) GetReplicationTask(ctx context.Context, name string) (model.FullReplicationInfo, error) {
+	var task model.FullReplicationInfo
+	err := c.HTTPClient.Get(ctx, fmt.Sprintf("/replications/%s", name), &task)
+	if err != nil {
+		return model.FullReplicationInfo{}, err
+	}
+	return task, nil
+}
+
+// CreateReplicationTask creates a new replication task.
+func (c *ReductClient) CreateReplicationTask(ctx context.Context, name string, task model.ReplicationSettings) error {
+	// validate the task
+	if task.SrcBucket == "" {
+		return fmt.Errorf("src_bucket is required")
+	}
+	if task.DstBucket == "" {
+		return fmt.Errorf("dst_bucket is required")
+	}
+	if task.DstHost == "" {
+		return fmt.Errorf("dst_host is required")
+	}
+	if name == "" {
+		return fmt.Errorf("name is required")
+	}
+	var fullTask model.FullReplicationInfo
+	err := c.HTTPClient.Post(ctx, fmt.Sprintf("/replications/%s", name), task, &fullTask)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// UpdateReplicationTask updates an existing replication task.
+func (c *ReductClient) UpdateReplicationTask(ctx context.Context, name string, task model.ReplicationSettings) error {
+	var fullTask model.FullReplicationInfo
+	if name == "" {
+		return fmt.Errorf("name is required")
+	}
+	if task.SrcBucket == "" {
+		return fmt.Errorf("src_bucket is required")
+	}
+	if task.DstBucket == "" {
+		return fmt.Errorf("dst_bucket is required")
+	}
+	if task.DstHost == "" {
+		return fmt.Errorf("dst_host is required")
+	}
+	err := c.HTTPClient.Put(ctx, fmt.Sprintf("/replications/%s", name), task, &fullTask)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// RemoveReplicationTask removes a replication task.
+func (c *ReductClient) RemoveReplicationTask(ctx context.Context, name string) error {
+	return c.HTTPClient.Delete(ctx, fmt.Sprintf("/replications/%s", name))
 }
