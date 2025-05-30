@@ -201,14 +201,57 @@ const (
 // QueryOptions represents a query to run on an entry.
 type QueryOptions struct {
 	QueryType    QueryType     `json:"query_type"`
-	Start        *int64        `json:"start,omitempty"`
-	Stop         *int64        `json:"stop,omitempty"`
+	Start        int64         `json:"start,omitempty"`
+	Stop         int64         `json:"stop,omitempty"`
 	When         any           `json:"when,omitempty"`
 	Ext          any           `json:"ext,omitempty"`
 	Strict       bool          `json:"strict,omitempty"`
 	Continuous   bool          `json:"continuous,omitempty"`
 	Head         bool          `json:"-"`
 	PollInterval time.Duration `json:"-"`
+}
+type QueryOptionsBuilder struct {
+	query QueryOptions
+}
+
+func NewQueryOptionsBuilder() *QueryOptionsBuilder {
+	return &QueryOptionsBuilder{}
+}
+
+func (q *QueryOptionsBuilder) WithStart(start int64) *QueryOptionsBuilder {
+	q.query.Start = start
+	return q
+}
+func (q *QueryOptionsBuilder) WithStop(stop int64) *QueryOptionsBuilder {
+	q.query.Stop = stop
+	return q
+}
+func (q *QueryOptionsBuilder) WithWhen(when any) *QueryOptionsBuilder {
+	q.query.When = when
+	return q
+}
+func (q *QueryOptionsBuilder) WithExt(ext any) *QueryOptionsBuilder {
+	q.query.Ext = ext
+	return q
+}
+func (q *QueryOptionsBuilder) WithStrict(strict bool) *QueryOptionsBuilder {
+	q.query.Strict = strict
+	return q
+}
+func (q *QueryOptionsBuilder) WithContinuous(continuous bool) *QueryOptionsBuilder {
+	q.query.Continuous = continuous
+	return q
+}
+func (q *QueryOptionsBuilder) WithHead(head bool) *QueryOptionsBuilder {
+	q.query.Head = head
+	return q
+}
+func (q *QueryOptionsBuilder) WithPollInterval(pollInterval time.Duration) *QueryOptionsBuilder {
+	q.query.PollInterval = pollInterval
+	return q
+}
+func (q *QueryOptionsBuilder) Build() *QueryOptions {
+	return &q.query
 }
 
 // QueryResponse represents the response from a query operation.
