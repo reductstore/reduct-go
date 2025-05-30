@@ -14,7 +14,7 @@ func TestCreateOrGetBucket_Success(t *testing.T) {
 		WithQuotaSize(1024 * 1024 * 1024).
 		WithQuotaType(model.QuotaTypeFifo).
 		WithMaxBlockRecords(1000).WithMaxBlockSize(1024).Build()
-	bucket, err := client.CreateOrGetBucket(context.Background(), mainTestBucket.Name, settings)
+	bucket, err := client.CreateOrGetBucket(context.Background(), mainTestBucket.Name, &settings)
 	assert.NoError(t, err)
 	assert.Equal(t, bucket.Name, mainTestBucket.Name)
 }
@@ -81,13 +81,64 @@ func TestCreateBucket_Success(t *testing.T) {
 		WithQuotaSize(1024 * 1024 * 1024).
 		WithQuotaType(model.QuotaTypeFifo).
 		WithMaxBlockRecords(1000).WithMaxBlockSize(1024).Build()
-	info, err := client.CreateBucket(ctx, newBucketName, settings)
+	info, err := client.CreateBucket(ctx, newBucketName, &settings)
 	assert.NoError(t, err)
 	assert.Equal(t, newBucketName, info.Name)
 
 	// remove the created bucket
 	err = client.RemoveBucket(ctx, info.Name)
 	assert.NoError(t, err)
+}
+func TestReplicationAPI(t *testing.T) {
+	ctx := context.Background()
+	sourceBucketName := getRandomBucketName()
+	destinationBucketName := getRandomBucketName()
+	task := model.ReplicationSettings{
+		SrcBucket: sourceBucketName,
+		DstBucket: destinationBucketName,
+		DstHost:   "http://localhost:8383",
+	}
+	// create the source bucket
+	_, _ = client.CreateBucket(ctx, sourceBucketName, model.NewBucketSettingBuilder(). //nolint:errcheck // ignore error
+												WithQuotaSize(1024*1024*1024).
+												WithQuotaType(model.QuotaTypeFifo).
+												WithMaxBlockRecords(1000).WithMaxBlockSize(1024).Build())
+	// create the destination bucket
+	_, _ = client.CreateBucket(ctx, destinationBucketName, model.NewBucketSettingBuilder(). //nolint:errcheck // ignore error
+												WithQuotaSize(1024*1024*1024).
+												WithQuotaType(model.QuotaTypeFifo).
+												WithMaxBlockRecords(1000).WithMaxBlockSize(1024).Build())
+
+	t.Run("CreateReplicationTask", func(t *testing.T) {
+		err := client.CreateReplicationTask(ctx, "test-replication", task)
+		assert.NoError(t, err)
+	})
+	t.Run("GetReplicationTask", func(t *testing.T) {
+		task, err := client.GetReplicationTask(ctx, "test-replication")
+		assert.NoError(t, err)
+		assert.Equal(t, task.Info.Name, "test-replication")
+	})
+	t.Run("UpdateReplicationTask", func(t *testing.T) {
+		err := client.UpdateReplicationTask(ctx, "test-replication", task)
+		assert.NoError(t, err)
+	})
+
+	t.Run("GetReplicationTasks", func(t *testing.T) {
+		tasks, err := client.GetReplicationTasks(ctx)
+		assert.NoError(t, err)
+		assert.NotEmpty(t, tasks)
+	})
+
+	t.Run("RemoveReplicationTask", func(t *testing.T) {
+		err := client.RemoveReplicationTask(ctx, "test-replication")
+		assert.NoError(t, err)
+	})
+	// check its removed
+	t.Run("GetReplicationTask", func(t *testing.T) {
+		_, err := client.GetReplicationTask(ctx, "test-replication")
+		assert.Error(t, err)
+	})
+
 }
 
 // Creating an existing bucket should fail.
@@ -98,11 +149,11 @@ func TestCreateBucket_Fail(t *testing.T) {
 		WithQuotaType(model.QuotaTypeFifo).
 		WithMaxBlockRecords(1000).WithMaxBlockSize(1024).Build()
 	bucketName := getRandomBucketName()
-	_, err := client.CreateBucket(ctx, bucketName, settings)
+	_, err := client.CreateBucket(ctx, bucketName, &settings)
 
 	assert.NoError(t, err)
 	// trying to create existing bucket again
-	_, err = client.CreateBucket(ctx, bucketName, settings)
+	_, err = client.CreateBucket(ctx, bucketName, &settings)
 	assert.Error(t, err)
 
 	// remove bucket
