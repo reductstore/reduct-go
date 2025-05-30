@@ -1,6 +1,7 @@
 package reductgo
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -57,7 +58,7 @@ func TestEntryRecordWriterAndReader(t *testing.T) {
 	}
 	dataByte, err := json.Marshal(data)
 	assert.NoError(t, err)
-	err = writer.Write(dataByte, int64(len(dataByte)))
+	err = writer.Write(dataByte)
 	assert.NoError(t, err)
 	// we should be able to read the written data
 	reader, err := mainTestBucket.BeginRead(context.Background(), "entry-1", nil, false)
@@ -83,7 +84,7 @@ func TestEntryRecordStreamWriterAndChunkedReader(t *testing.T) {
 
 	chunks := []byte(`{"part": "one","more": 123,"nested": {"inner": "value"}}`)
 
-	err = writer.Write(chunks, int64(len(chunks)))
+	err = writer.Write(chunks)
 	assert.NoError(t, err)
 
 	// Begin reading with streaming reader
@@ -121,7 +122,9 @@ func TestUpdateRecordLabels(t *testing.T) {
 			"initial": "value",
 		},
 	})
-	err := writer.Write([]byte("test data"), 9)
+	reader := bytes.NewReader([]byte("test data"))
+	writer = writer.WithSize(9)
+	err := writer.Write(reader)
 	assert.NoError(t, err)
 
 	// Update the labels

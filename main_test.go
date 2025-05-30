@@ -45,7 +45,7 @@ func setup() {
 
 	client = *getNewTestClient()
 
-	_, err := client.CreateBucket(context.Background(), mainTestBucket.Name, settings)
+	_, err := client.CreateBucket(context.Background(), mainTestBucket.Name, &settings)
 	if err != nil {
 		log.Fatal(err)
 	}
