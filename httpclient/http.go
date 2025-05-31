@@ -143,7 +143,7 @@ func (c *httpClient) Put(ctx context.Context, path string, requestBody, response
 	// Check for non-OK status codes
 	if resp.StatusCode != http.StatusOK {
 		return &model.APIError{
-			Message:  reductError,
+			Message:  resp.Status,
 			Original: err,
 			Status:   resp.StatusCode,
 		}

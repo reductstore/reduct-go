@@ -19,6 +19,41 @@ func TestCreateOrGetBucket_Success(t *testing.T) {
 	assert.Equal(t, bucket.Name, mainTestBucket.Name)
 }
 
+func teardownToken(tokenName string) {
+	_ = client.RemoveToken(context.Background(), tokenName) //nolint:errcheck // ignore error.
+}
+
+func TestTokenAPI(t *testing.T) {
+	tokenName := "test-token"
+	teardownToken(tokenName)
+	t.Run("Create Token", func(t *testing.T) {
+		token, err := client.CreateToken(context.Background(), tokenName, model.TokenPermissions{
+			FullAccess: true,
+		})
+		assert.NoError(t, err)
+		assert.NotEmpty(t, token)
+	})
+	t.Run("Get Token", func(t *testing.T) {
+		token, err := client.GetToken(context.Background(), tokenName)
+		assert.NoError(t, err)
+		assert.NotEmpty(t, token)
+	})
+
+	t.Run("Get Current Token", func(t *testing.T) {
+		token, err := client.GetCurrentToken(context.Background())
+		assert.NoError(t, err)
+		assert.NotEmpty(t, token)
+	})
+	t.Run("Remove Token", func(t *testing.T) {
+		err := client.RemoveToken(context.Background(), tokenName)
+		assert.NoError(t, err)
+	})
+	// check if the token is removed
+	t.Run("Check if Token is Removed", func(t *testing.T) {
+		_, err := client.GetToken(context.Background(), tokenName)
+		assert.Error(t, err)
+	})
+}
 func TestGetInfo(t *testing.T) {
 	info, err := client.GetInfo(context.Background())
 	assert.NoError(t, err)
@@ -64,15 +99,17 @@ func TestReplicationAPI(t *testing.T) {
 		DstHost:   "http://localhost:8383",
 	}
 	// create the source bucket
-	_, _ = client.CreateBucket(ctx, sourceBucketName, model.NewBucketSettingBuilder(). //nolint:errcheck // ignore error
-												WithQuotaSize(1024*1024*1024).
-												WithQuotaType(model.QuotaTypeFifo).
-												WithMaxBlockRecords(1000).WithMaxBlockSize(1024).Build())
+	settings := model.NewBucketSettingBuilder().
+		WithQuotaSize(1024 * 1024 * 1024).
+		WithQuotaType(model.QuotaTypeFifo).
+		WithMaxBlockRecords(1000).WithMaxBlockSize(1024).Build()
+	_, _ = client.CreateBucket(ctx, sourceBucketName, &settings) //nolint:errcheck // ignore error
 	// create the destination bucket
-	_, _ = client.CreateBucket(ctx, destinationBucketName, model.NewBucketSettingBuilder(). //nolint:errcheck // ignore error
-												WithQuotaSize(1024*1024*1024).
-												WithQuotaType(model.QuotaTypeFifo).
-												WithMaxBlockRecords(1000).WithMaxBlockSize(1024).Build())
+	settings = model.NewBucketSettingBuilder().
+		WithQuotaSize(1024 * 1024 * 1024).
+		WithQuotaType(model.QuotaTypeFifo).
+		WithMaxBlockRecords(1000).WithMaxBlockSize(1024).Build()
+	_, _ = client.CreateBucket(ctx, destinationBucketName, &settings) //nolint:errcheck // ignore error
 
 	t.Run("CreateReplicationTask", func(t *testing.T) {
 		err := client.CreateReplicationTask(ctx, "test-replication", task)

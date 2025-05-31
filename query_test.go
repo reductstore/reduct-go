@@ -45,10 +45,11 @@ func TestQuery(t *testing.T) {
 	t.Run("Query with Time Range", func(t *testing.T) {
 		start := now
 		end := now + 3
-		queryResult, err := mainTestBucket.Query(ctx, entry, &QueryOptions{
-			Start: &start,
-			Stop:  &end,
-		})
+		queryOptions := NewQueryOptionsBuilder().
+			WithStart(start).
+			WithStop(end).
+			Build()
+		queryResult, err := mainTestBucket.Query(ctx, entry, queryOptions)
 		assert.NoError(t, err)
 
 		count := 0
@@ -65,10 +66,11 @@ func TestQuery(t *testing.T) {
 	t.Run("Query with Invalid Time Range", func(t *testing.T) {
 		start := now + 4
 		end := now
-		queryResult, err := mainTestBucket.Query(ctx, entry, &QueryOptions{
-			Start: &start,
-			Stop:  &end,
-		})
+		queryOptions := NewQueryOptionsBuilder().
+			WithStart(start).
+			WithStop(end).
+			Build()
+		queryResult, err := mainTestBucket.Query(ctx, entry, queryOptions)
 		assert.Error(t, err)
 		for record := range queryResult.Records() {
 			data, err := record.Read()
@@ -218,8 +220,8 @@ func TestRemoveQuery(t *testing.T) {
 		start := now
 		end := now + 2
 		removed, err := mainTestBucket.RemoveQuery(ctx, entry, &QueryOptions{
-			Start: &start,
-			Stop:  &end,
+			Start: start,
+			Stop:  end,
 		})
 		assert.NoError(t, err)
 		fmt.Printf("removed:%d\n", removed)

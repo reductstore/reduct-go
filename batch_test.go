@@ -166,11 +166,12 @@ func TestBatchUpdate(t *testing.T) {
 	err = updateBatch.Write(ctx)
 	assert.NoError(t, err)
 
+	queryOptions := NewQueryOptionsBuilder().
+		WithStart(now).
+		WithStop(now).
+		Build()
 	// Verify updates
-	queryResult, err := mainTestBucket.Query(ctx, entry, &QueryOptions{
-		Start: &now,
-		Stop:  &now,
-	})
+	queryResult, err := mainTestBucket.Query(ctx, entry, queryOptions)
 	assert.NoError(t, err)
 
 	for record := range queryResult.Records() {
@@ -197,10 +198,11 @@ func TestBatchRemove(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Verify removal
-	queryResult, err := mainTestBucket.Query(ctx, entry, &QueryOptions{
-		Start: &now,
-		Stop:  &now,
-	})
+	queryOptions := NewQueryOptionsBuilder().
+		WithStart(now).
+		WithStop(now).
+		Build()
+	queryResult, err := mainTestBucket.Query(ctx, entry, queryOptions)
 	assert.NoError(t, err)
 
 	count := 0
