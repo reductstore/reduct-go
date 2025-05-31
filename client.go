@@ -98,6 +98,13 @@ func (c *ReductClient) GetInfo(ctx context.Context) (model.ServerInfo, error) {
 	if err != nil {
 		return model.ServerInfo{}, model.APIError{Message: err.Error(), Original: err}
 	}
+
+	// Check version compatibility
+	err = model.CheckServerAPIVersion(info.Version, model.GetVersion())
+	if err != nil {
+		return info, err
+	}
+
 	return info, nil
 }
 
