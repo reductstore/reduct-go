@@ -16,7 +16,7 @@ type Version struct {
 
 // SDKVersion is the current version of the SDK.
 // This should be updated manually with each release.
-const SDKVersion = "1.15.0"
+const SDKVersion = "1.16.0"
 
 // GetVersion returns the current version of the SDK.
 func GetVersion() string {
