@@ -218,40 +218,67 @@ func NewQueryOptionsBuilder() *QueryOptionsBuilder {
 	return &QueryOptionsBuilder{}
 }
 
+// WithStart sets the start timestamp (in microseconds) for the query.
+// Returns the QueryOptionsBuilder to allow method chaining.
 func (q *QueryOptionsBuilder) WithStart(start int64) *QueryOptionsBuilder {
 	q.query.Start = start
 	return q
 }
+
+// WithStop sets the stop timestamp (in microseconds) for the query.
+// Returns the QueryOptionsBuilder to allow method chaining.
 func (q *QueryOptionsBuilder) WithStop(stop int64) *QueryOptionsBuilder {
 	q.query.Stop = stop
 	return q
 }
+
+// WithWhen sets the when condition for the query.
+// Example: map[string]any{"&label": map[string]any{"$eq": "test"}}
+// Returns the QueryOptionsBuilder to allow method chaining.
 func (q *QueryOptionsBuilder) WithWhen(when any) *QueryOptionsBuilder {
 	q.query.When = when
 	return q
 }
+
+// WithExt sets the ext field for the query to pass additional parameters to extensions
+// Returns the QueryOptionsBuilder to allow method chaining.
 func (q *QueryOptionsBuilder) WithExt(ext any) *QueryOptionsBuilder {
 	q.query.Ext = ext
 	return q
 }
+
+// WithStrict sets the strict mode for the query.
+// Returns the QueryOptionsBuilder to allow method chaining.
 func (q *QueryOptionsBuilder) WithStrict(strict bool) *QueryOptionsBuilder {
 	q.query.Strict = strict
 	return q
 }
+
+// WithContinuous WithQueryType makes the query continuous.
+// If set, the query doesn't finish if no records are found and waits for new records to be added.
+// Returns the QueryOptionsBuilder to allow method chaining.
 func (q *QueryOptionsBuilder) WithContinuous(continuous bool) *QueryOptionsBuilder {
 	q.query.Continuous = continuous
 	return q
 }
+
+// WithHead if set to true, only metadata is fetched without the content.
+// Returns the QueryOptionsBuilder to allow method chaining.
 func (q *QueryOptionsBuilder) WithHead(head bool) *QueryOptionsBuilder {
 	q.query.Head = head
 	return q
 }
+
+// WithPollInterval sets the interval for polling the query if it is continuous.
+// Returns the QueryOptionsBuilder to allow method chaining.
 func (q *QueryOptionsBuilder) WithPollInterval(pollInterval time.Duration) *QueryOptionsBuilder {
 	q.query.PollInterval = pollInterval
 	return q
 }
-func (q *QueryOptionsBuilder) Build() *QueryOptions {
-	return &q.query
+
+// Build builds the QueryOptions from the builder.
+func (q *QueryOptionsBuilder) Build() QueryOptions {
+	return q.query
 }
 
 // QueryResponse represents the response from a query operation.

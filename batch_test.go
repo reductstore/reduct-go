@@ -171,7 +171,7 @@ func TestBatchUpdate(t *testing.T) {
 		WithStop(now).
 		Build()
 	// Verify updates
-	queryResult, err := mainTestBucket.Query(ctx, entry, queryOptions)
+	queryResult, err := mainTestBucket.Query(ctx, entry, &queryOptions)
 	assert.NoError(t, err)
 
 	for record := range queryResult.Records() {
@@ -202,7 +202,7 @@ func TestBatchRemove(t *testing.T) {
 		WithStart(now).
 		WithStop(now).
 		Build()
-	queryResult, err := mainTestBucket.Query(ctx, entry, queryOptions)
+	queryResult, err := mainTestBucket.Query(ctx, entry, &queryOptions)
 	assert.NoError(t, err)
 
 	count := 0

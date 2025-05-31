@@ -49,7 +49,7 @@ func TestQuery(t *testing.T) {
 			WithStart(start).
 			WithStop(end).
 			Build()
-		queryResult, err := mainTestBucket.Query(ctx, entry, queryOptions)
+		queryResult, err := mainTestBucket.Query(ctx, entry, &queryOptions)
 		assert.NoError(t, err)
 
 		count := 0
@@ -70,7 +70,7 @@ func TestQuery(t *testing.T) {
 			WithStart(start).
 			WithStop(end).
 			Build()
-		queryResult, err := mainTestBucket.Query(ctx, entry, queryOptions)
+		queryResult, err := mainTestBucket.Query(ctx, entry, &queryOptions)
 		assert.Error(t, err)
 		for record := range queryResult.Records() {
 			data, err := record.Read()
