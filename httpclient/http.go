@@ -113,10 +113,7 @@ func (c *httpClient) Put(ctx context.Context, path string, requestBody, response
 			Message:  err.Error(),
 		}
 	}
-	// set reques headers
-	c.setClientHeaders(req)
-	// Create an HTTP client and perform the request
-	resp, err := c.client.Do(req)
+	resp, err := c.Do(req)
 	reductError := resp.Header.Get("X-Reduct-Error")
 	if err != nil {
 		return &model.APIError{
@@ -190,10 +187,7 @@ func (c *httpClient) Patch(ctx context.Context, path string, requestBody, respon
 			Message:  err.Error(),
 		}
 	}
-	// set reques headers
-	c.setClientHeaders(req)
-	// Create an HTTP client and perform the request
-	resp, err := c.client.Do(req)
+	resp, err := c.Do(req)
 
 	if err != nil {
 		return handleHTTPError(err)
@@ -263,10 +257,7 @@ func (c *httpClient) Post(ctx context.Context, path string, requestBody, respons
 			Message:  err.Error(),
 		}
 	}
-	// set reques headers
-	c.setClientHeaders(req)
-	// Create an HTTP client and perform the request
-	resp, err := c.client.Do(req)
+	resp, err := c.Do(req)
 
 	if err != nil {
 		return handleHTTPError(err)
@@ -363,10 +354,7 @@ func (c *httpClient) Get(ctx context.Context, path string, responseData any) err
 	if err != nil {
 		return &model.APIError{Original: err}
 	}
-	// set reques headers
-	c.setClientHeaders(req)
-	// Create an HTTP client and perform the request
-	resp, err := c.client.Do(req)
+	resp, err := c.Do(req)
 
 	if err != nil {
 		return handleHTTPError(err)
@@ -420,10 +408,7 @@ func (c *httpClient) Head(ctx context.Context, path string) error {
 	if err != nil {
 		return &model.APIError{Original: err}
 	}
-	// set reques headers
-	c.setClientHeaders(req)
-	// Create an HTTP client and perform the request
-	resp, err := c.client.Do(req)
+	resp, err := c.Do(req)
 
 	if err != nil {
 		return handleHTTPError(err)
@@ -458,10 +443,7 @@ func (c *httpClient) Delete(ctx context.Context, path string) error {
 	if err != nil {
 		return &model.APIError{Original: err}
 	}
-	// set reques headers
-	c.setClientHeaders(req)
-	// Create an HTTP client and perform the request
-	resp, err := c.client.Do(req)
+	resp, err := c.Do(req)
 
 	if err != nil {
 		return handleHTTPError(err)
@@ -487,7 +469,7 @@ func (c *httpClient) Delete(ctx context.Context, path string) error {
 }
 
 func (c *httpClient) Do(req *http.Request) (*http.Response, error) {
-	// set reques headers
+	// set request headers
 	c.setClientHeaders(req)
 	// Create an HTTP client and perform the Do
 	resp, err := c.client.Do(req)
@@ -496,6 +478,20 @@ func (c *httpClient) Do(req *http.Request) (*http.Response, error) {
 		return nil, handleHTTPError(err)
 	}
 	reductError := resp.Header.Get("X-Reduct-Error")
+
+	// Check API version header
+	apiVersion := resp.Header.Get("X-Reduct-API")
+	if apiVersion == "" {
+		return nil, &model.APIError{
+			Status:  resp.StatusCode,
+			Message: "Server did not provide API version",
+		}
+	}
+
+	// Check API version compatibility
+	if err := model.CheckServerAPIVersion(apiVersion, APIVersion); err != nil {
+		return nil, err
+	}
 
 	if resp.StatusCode >= 300 {
 		return resp, model.APIError{

@@ -54,10 +54,32 @@ func TestTokenAPI(t *testing.T) {
 		assert.Error(t, err)
 	})
 }
+
 func TestGetInfo(t *testing.T) {
 	info, err := client.GetInfo(context.Background())
 	assert.NoError(t, err)
 	assert.NotNil(t, info)
+}
+
+func TestGetInfo_VersionCheck(t *testing.T) {
+	info, err := client.GetInfo(context.Background())
+	assert.NoError(t, err)
+	assert.NotNil(t, info)
+
+	// Parse the server version
+	serverVersion, err := model.ParseVersion(info.Version)
+	assert.NoError(t, err)
+
+	// Parse the minimum supported version
+	minVersion, err := model.ParseVersion(MinSupportedVersion)
+	assert.NoError(t, err)
+
+	// If the server version is older than min version by 3 minor versions,
+	// the warning will be logged but the function will still succeed
+	if serverVersion.IsOlderThan(minVersion, 3) {
+		t.Logf("WARNING: Server version %s is at least 3 minor versions older than minimum supported version %s",
+			serverVersion.String(), minVersion.String())
+	}
 }
 
 func TestGetBuckets(t *testing.T) {
@@ -89,6 +111,7 @@ func TestCreateBucket_Success(t *testing.T) {
 	err = client.RemoveBucket(ctx, info.Name)
 	assert.NoError(t, err)
 }
+
 func TestReplicationAPI(t *testing.T) {
 	ctx := context.Background()
 	sourceBucketName := getRandomBucketName()
@@ -170,6 +193,7 @@ func TestBucketExistsFail(t *testing.T) {
 	assert.Error(t, err)
 	assert.False(t, exists)
 }
+
 func TestReductStoreHealth(t *testing.T) {
 	healthURL := "http://127.0.0.1:8383/api/v1/alive"
 
