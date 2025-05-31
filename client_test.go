@@ -69,11 +69,8 @@ func TestGetInfo_VersionCheck(t *testing.T) {
 	// Parse the server version
 	serverVersion, err := model.ParseVersion(info.Version)
 	assert.NoError(t, err)
-
-	// Parse the minimum supported version
-	minVersion, err := model.ParseVersion(MinSupportedVersion)
+	minVersion, err := model.ParseVersion("v1.5.0")
 	assert.NoError(t, err)
-
 	// If the server version is older than min version by 3 minor versions,
 	// the warning will be logged but the function will still succeed
 	if serverVersion.IsOlderThan(minVersion, 3) {

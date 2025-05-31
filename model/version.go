@@ -3,53 +3,28 @@ package model
 import (
 	"fmt"
 	"log"
-	"os"
-	"path/filepath"
-	"runtime"
 	"strconv"
 	"strings"
 )
 
-// Version represents a semantic version
+// Version represents a semantic version.
 type Version struct {
 	Major int
 	Minor int
 	Patch int
 }
 
-var version string
-
-func init() {
-	// Get the path to the current file
-	_, filename, _, _ := runtime.Caller(0)
-	// Get the root directory (two levels up from model/version.go)
-	rootDir := filepath.Dir(filepath.Dir(filename))
-	versionFile := filepath.Join(rootDir, "VERSION")
-
-	// Read the VERSION file
-	content, err := os.ReadFile(versionFile)
-	if err != nil {
-		log.Printf("Warning: Could not read VERSION file: %v", err)
-		version = "0.0.0"
-		return
-	}
-
-	// Trim whitespace and newlines
-	version = strings.TrimSpace(string(content))
-}
+// SDKVersion is the current version of the SDK.
+// This should be updated manually with each release.
+const SDKVersion = "1.15.0"
 
 // GetVersion returns the current version of the SDK.
 func GetVersion() string {
-	return version
+	return SDKVersion
 }
 
-// ParseVersion parses a version string into a Version struct
+// ParseVersion parses a version string into a Version struct.
 func ParseVersion(version string) (*Version, error) {
-	// Special case for development version
-	if version == "dev" {
-		return &Version{Major: 0, Minor: 0, Patch: 0}, nil
-	}
-
 	// Remove 'v' prefix if present
 	version = strings.TrimPrefix(version, "v")
 
@@ -83,7 +58,7 @@ func ParseVersion(version string) (*Version, error) {
 	}, nil
 }
 
-// String returns the string representation of the version
+// String returns the string representation of the version.
 func (v *Version) String() string {
 	if v.Major == 0 && v.Minor == 0 && v.Patch == 0 {
 		return "dev"
@@ -94,7 +69,7 @@ func (v *Version) String() string {
 	return fmt.Sprintf("%d.%d.%d", v.Major, v.Minor, v.Patch)
 }
 
-// IsOlderThan returns true if this version is older than the other version by at least minorVersionDiff minor versions
+// IsOlderThan returns true if this version is older than the other version by at least minorVersionDiff minor versions.
 func (v *Version) IsOlderThan(other *Version, minorVersionDiff int) bool {
 	if v.Major < other.Major {
 		return true
@@ -109,11 +84,6 @@ func (v *Version) IsOlderThan(other *Version, minorVersionDiff int) bool {
 // It returns an error if the major versions don't match, and logs a warning if the server
 // is more than 2 minor versions behind the client.
 func CheckServerAPIVersion(serverVersion, clientVersion string) error {
-	// Special case: if client is in development version, skip version checks
-	if clientVersion == "dev" {
-		return nil
-	}
-
 	server, err := ParseVersion(serverVersion)
 	if err != nil {
 		return fmt.Errorf("failed to parse server version: %w", err)

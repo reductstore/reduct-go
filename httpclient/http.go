@@ -475,22 +475,22 @@ func (c *httpClient) Do(req *http.Request) (*http.Response, error) {
 	resp, err := c.client.Do(req)
 
 	if err != nil {
-		return nil, handleHTTPError(err)
+		return resp, handleHTTPError(err)
 	}
 	reductError := resp.Header.Get("X-Reduct-Error")
 
 	// Check API version header
 	apiVersion := resp.Header.Get("X-Reduct-API")
 	if apiVersion == "" {
-		return nil, &model.APIError{
+		return resp, &model.APIError{
 			Status:  resp.StatusCode,
 			Message: "Server did not provide API version",
 		}
 	}
 
-	// Check API version compatibility
-	if err := model.CheckServerAPIVersion(apiVersion, APIVersion); err != nil {
-		return nil, err
+	err = model.CheckServerAPIVersion(apiVersion, model.GetVersion())
+	if err != nil {
+		return resp, err
 	}
 
 	if resp.StatusCode >= 300 {

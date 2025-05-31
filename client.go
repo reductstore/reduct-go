@@ -12,10 +12,6 @@ import (
 	"github.com/reductstore/reduct-go/model"
 )
 
-// MinSupportedVersion is the minimum supported server version
-// Servers older than this by 3 minor versions will trigger a warning
-const MinSupportedVersion = "1.5.0"
-
 type tokenInfo struct {
 	Value     string `json:"value"`
 	CreatedAt string `json:"created_at"`
