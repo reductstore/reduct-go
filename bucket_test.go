@@ -135,7 +135,7 @@ func TestUpdateRecordLabels(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Verify the labels were updated correctly
-	record, err := mainTestBucket.BeginReadOnlyMeta(ctx, entry, &now)
+	record, err := mainTestBucket.BeginMetadataRead(ctx, entry, &now)
 	assert.NoError(t, err)
 	labels := record.Labels()
 	assert.NotContains(t, labels, "initial", "initial label should be removed")

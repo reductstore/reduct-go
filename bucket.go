@@ -100,7 +100,7 @@ func (b *Bucket) BeginRead(ctx context.Context, entry string, ts *int64) (*Reada
 	return b.readRecord(ctx, entry, &strTs, false)
 }
 
-// BeginReadOnlyMeta starts reading only the metadata of a record from the given entry at the specified timestamp.
+// BeginMetadataRead starts reading only the metadata of a record from the given entry at the specified timestamp.
 //
 // Parameters:
 //   - ctx: Context for cancellation and timeout control.
@@ -110,7 +110,7 @@ func (b *Bucket) BeginRead(ctx context.Context, entry string, ts *int64) (*Reada
 // It returns a readableRecord or an error if the read fails.
 //
 // Use readableRecord.Read() to read the content of the reader.
-func (b *Bucket) BeginReadOnlyMeta(ctx context.Context, entry string, ts *int64) (*ReadableRecord, error) {
+func (b *Bucket) BeginMetadataRead(ctx context.Context, entry string, ts *int64) (*ReadableRecord, error) {
 	// If no timestamp is provided, read the latest record
 	if ts == nil {
 		return b.readRecord(ctx, entry, nil, true)
