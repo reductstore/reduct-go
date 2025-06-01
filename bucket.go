@@ -201,15 +201,15 @@ func (b *Bucket) BeginWrite(_ context.Context, entry string, options *WriteOptio
 }
 
 func (b *Bucket) BeginWriteBatch(_ context.Context, entry string) *Batch {
-	return NewBatch(b.Name, entry, b.HTTPClient, BatchWrite)
+	return newBatch(b.Name, entry, b.HTTPClient, BatchWrite)
 }
 
 func (b *Bucket) BeginUpdateBatch(_ context.Context, entry string) *Batch {
-	return NewBatch(b.Name, entry, b.HTTPClient, BatchUpdate)
+	return newBatch(b.Name, entry, b.HTTPClient, BatchUpdate)
 }
 
 func (b *Bucket) BeginRemoveBatch(_ context.Context, entry string) *Batch {
-	return NewBatch(b.Name, entry, b.HTTPClient, BatchRemove)
+	return newBatch(b.Name, entry, b.HTTPClient, BatchRemove)
 }
 
 // QueryType represents the type of query to run.
