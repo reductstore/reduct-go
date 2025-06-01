@@ -130,6 +130,10 @@ func (c *ReductClient) GetBucket(ctx context.Context, name string) (Bucket, erro
 }
 
 func (c *ReductClient) CreateBucket(ctx context.Context, name string, settings *model.BucketSetting) (Bucket, error) {
+	if settings == nil {
+		settings = &model.BucketSetting{}
+	}
+
 	err := c.HTTPClient.Post(ctx, fmt.Sprintf("/b/%s", name), settings, nil)
 	if err != nil {
 		return Bucket{}, err
@@ -139,6 +143,10 @@ func (c *ReductClient) CreateBucket(ctx context.Context, name string, settings *
 }
 
 func (c *ReductClient) CreateOrGetBucket(ctx context.Context, name string, settings *model.BucketSetting) (Bucket, error) {
+	if settings == nil {
+		settings = &model.BucketSetting{}
+	}
+
 	err := c.HTTPClient.Post(ctx, fmt.Sprintf("/b/%s", name), settings, nil)
 	if err != nil {
 		if apiErr, ok := err.(*model.APIError); ok { //nolint:errorlint //error.As does not give access to status check
