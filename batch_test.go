@@ -40,7 +40,7 @@ func TestBatchReading(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
-		reader, err := mainTestBucket.BeginRead(ctx, "batch-test-entry", nil, false)
+		reader, err := mainTestBucket.BeginRead(ctx, "batch-test-entry", nil)
 		assert.NoError(t, err)
 		assert.NotNil(t, reader)
 
@@ -59,7 +59,7 @@ func TestBatchReading(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
-		reader, err := mainTestBucket.BeginRead(ctx, "batch-test-entry", nil, true)
+		reader, err := mainTestBucket.BeginReadOnlyMeta(ctx, "batch-test-entry", nil)
 		assert.NoError(t, err)
 		assert.NotNil(t, reader)
 

@@ -87,14 +87,36 @@ func (b *Bucket) Remove(ctx context.Context) error {
 //   - ctx: Context for cancellation and timeout control.
 //   - entry: Name of the entry to read from.
 //   - ts: Optional A UNIX timestamp in microseconds. If it is empty, the latest record is returned.
-//   - id: Optional A query ID to read the next record in the query. If it is set, the parameter ts is ignored.
-//   - head: If true, performs a HEAD request to fetch metadata only.
 //
 // It returns a readableRecord or an error if the read fails.
 //
 // Use readableRecord.Read() to read the content of the reader.
-func (b *Bucket) BeginRead(ctx context.Context, entry string, id *string, head bool) (*ReadableRecord, error) {
-	return b.readRecord(ctx, entry, id, head)
+func (b *Bucket) BeginRead(ctx context.Context, entry string, ts *int64) (*ReadableRecord, error) {
+	if ts == nil {
+		// If no timestamp is provided, read the latest record
+		return b.readRecord(ctx, entry, nil, false)
+	}
+	strTs := strconv.FormatInt(*ts, 10)
+	return b.readRecord(ctx, entry, &strTs, false)
+}
+
+// BeginReadOnlyMeta starts reading only the metadata of a record from the given entry at the specified timestamp.
+//
+// Parameters:
+//   - ctx: Context for cancellation and timeout control.
+//   - entry: Name of the entry to read from.
+//   - ts: Optional A UNIX timestamp in microseconds. If it is empty, the latest record is returned.
+//
+// It returns a readableRecord or an error if the read fails.
+//
+// Use readableRecord.Read() to read the content of the reader.
+func (b *Bucket) BeginReadOnlyMeta(ctx context.Context, entry string, ts *int64) (*ReadableRecord, error) {
+	// If no timestamp is provided, read the latest record
+	if ts == nil {
+		return b.readRecord(ctx, entry, nil, true)
+	}
+	strTs := strconv.FormatInt(*ts, 10)
+	return b.readRecord(ctx, entry, &strTs, true)
 }
 
 // readRecord prepares an entry record reader from the reductstore server.
