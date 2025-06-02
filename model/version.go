@@ -3,6 +3,9 @@ package model
 import (
 	"fmt"
 	"log"
+	"os"
+	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 )
@@ -14,13 +17,30 @@ type Version struct {
 	Patch int
 }
 
-// SDKVersion is the current version of the SDK.
-// This should be updated manually with each release.
-const SDKVersion = "1.16.0"
+var version string
+
+func init() {
+	// Get the path to the current file
+	_, filename, _, _ := runtime.Caller(0)
+	// Get the root directory (two levels up from model/version.go)
+	rootDir := filepath.Dir(filepath.Dir(filename))
+	versionFile := filepath.Join(rootDir, "VERSION")
+
+	// Read the VERSION file
+	content, err := os.ReadFile(versionFile)
+	if err != nil {
+		log.Printf("Warning: Could not read VERSION file: %v", err)
+		version = "0.0.0"
+		return
+	}
+
+	// Trim whitespace and newlines
+	version = strings.TrimSpace(string(content))
+}
 
 // GetVersion returns the current version of the SDK.
 func GetVersion() string {
-	return SDKVersion
+	return version
 }
 
 // ParseVersion parses a version string into a Version struct.
