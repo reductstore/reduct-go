@@ -73,7 +73,7 @@ func (v *Version) String() string {
 	if v.Major == 0 && v.Minor == 0 {
 		return "dev"
 	}
-	return fmt.Sprintf("%d.%d.%d", v.Major, v.Minor)
+	return fmt.Sprintf("%d.%d", v.Major, v.Minor)
 }
 
 // IsOlderThan returns true if this version is older than the other version by at least minorVersionDiff minor versions.

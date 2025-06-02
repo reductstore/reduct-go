@@ -19,7 +19,6 @@ func TestParseVersion(t *testing.T) {
 			expected: &Version{
 				Major: 1,
 				Minor: 2,
-				Patch: 3,
 			},
 		},
 		{
@@ -28,7 +27,6 @@ func TestParseVersion(t *testing.T) {
 			expected: &Version{
 				Major: 1,
 				Minor: 2,
-				Patch: 0,
 			},
 		},
 		{
@@ -37,7 +35,6 @@ func TestParseVersion(t *testing.T) {
 			expected: &Version{
 				Major: 1,
 				Minor: 2,
-				Patch: 3,
 			},
 		},
 		{
@@ -53,11 +50,6 @@ func TestParseVersion(t *testing.T) {
 		{
 			name:        "invalid minor version",
 			version:     "1.b.3",
-			expectError: true,
-		},
-		{
-			name:        "invalid patch version",
-			version:     "1.2.c",
 			expectError: true,
 		},
 	}
@@ -82,20 +74,10 @@ func TestVersion_String(t *testing.T) {
 		expected string
 	}{
 		{
-			name: "version with patch",
-			version: &Version{
-				Major: 1,
-				Minor: 2,
-				Patch: 3,
-			},
-			expected: "1.2.3",
-		},
-		{
 			name: "version without patch",
 			version: &Version{
 				Major: 1,
 				Minor: 2,
-				Patch: 0,
 			},
 			expected: "1.2",
 		},
