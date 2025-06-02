@@ -173,7 +173,7 @@ func TestQuery(t *testing.T) {
 		for record := range queryResult.Records() {
 			recordCount++
 
-			if record.IsLast() {
+			if record.IsLastInBatch() {
 				// Verify the large record
 				assert.Equal(t, int64(largeSize), record.Size())
 				assert.Equal(t, "large", record.Labels()["size"])

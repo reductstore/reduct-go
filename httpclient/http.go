@@ -489,7 +489,7 @@ func (c *httpClient) Do(req *http.Request) (*http.Response, error) {
 	}
 
 	// Check API version compatibility
-	if err := model.CheckServerAPIVersion(apiVersion, APIVersion); err != nil {
+	if err := model.CheckServerAPIVersion(apiVersion, model.GetVersion()); err != nil {
 		return nil, err
 	}
 

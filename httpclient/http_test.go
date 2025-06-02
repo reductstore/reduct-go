@@ -44,7 +44,7 @@ func TestAPIVersionCheck(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create a test server
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				if tt.apiVersion != "" {
 					w.Header().Set("X-Reduct-API", tt.apiVersion)
 				}
@@ -59,10 +59,10 @@ func TestAPIVersionCheck(t *testing.T) {
 			})
 
 			// Make request
-			req, err := http.NewRequest(http.MethodGet, server.URL+"/test", nil)
+			req, err := http.NewRequest(http.MethodGet, server.URL+"/test", http.NoBody)
 			assert.NoError(t, err)
 
-			resp, err := client.Do(req)
+			resp, err := client.Do(req) //nolint:bodyclose // we don't need to close the body here
 
 			if tt.expectedError {
 				assert.Error(t, err)
