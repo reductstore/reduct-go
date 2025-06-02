@@ -45,8 +45,8 @@ type Batch struct {
 
 type BatchOptions struct{}
 
-// NewBatch creates a new batch.
-func NewBatch(bucket, entry string, client httpclient.HTTPClient, batchType BatchType) *Batch {
+// newBatch creates a new batch.
+func newBatch(bucket, entry string, client httpclient.HTTPClient, batchType BatchType) *Batch {
 	return &Batch{
 		bucketName: bucket,
 		entryName:  entry,
