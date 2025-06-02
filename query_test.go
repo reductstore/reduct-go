@@ -126,7 +126,7 @@ func TestQuery(t *testing.T) {
 		assert.NoError(t, err)
 		for record := range queryResult.Records() {
 
-			if record.IsLast() {
+			if record.IsLastInBatch() {
 				// users can read the stream how they want
 				stream := record.Stream()
 				data, err := io.ReadAll(stream)
@@ -173,7 +173,7 @@ func TestQuery(t *testing.T) {
 		for record := range queryResult.Records() {
 			recordCount++
 
-			if record.IsLast() {
+			if record.IsLastInBatch() {
 				// Verify the large record
 				assert.Equal(t, int64(largeSize), record.Size())
 				assert.Equal(t, "large", record.Labels()["size"])

@@ -555,7 +555,8 @@ func (b *Bucket) readBatchedRecords(ctx context.Context, entry string, id int64,
 
 					body = io.NopCloser(bytes.NewReader(buffer[:parsed.Size]))
 				}
-				record := NewReadableRecord(ts, parsed.Size, isLastInBatch || isLastInQuery, body, parsed.Labels, parsed.ContentType)
+				record := NewReadableRecord(ts, parsed.Size, isLastInQuery, body, parsed.Labels, parsed.ContentType)
+				record.lastInBatch = isLastInBatch
 				select {
 				case <-ctx.Done():
 					err = fmt.Errorf("context canceled")
