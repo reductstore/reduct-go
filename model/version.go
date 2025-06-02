@@ -14,7 +14,6 @@ import (
 type Version struct {
 	Major int
 	Minor int
-	Patch int
 }
 
 var version string
@@ -63,30 +62,18 @@ func ParseVersion(version string) (*Version, error) {
 		return nil, fmt.Errorf("invalid minor version: %s", version)
 	}
 
-	patch := 0
-	if len(parts) > 2 {
-		patch, err = strconv.Atoi(parts[2])
-		if err != nil {
-			return nil, fmt.Errorf("invalid patch version: %s", version)
-		}
-	}
-
 	return &Version{
 		Major: major,
 		Minor: minor,
-		Patch: patch,
 	}, nil
 }
 
 // String returns the string representation of the version.
 func (v *Version) String() string {
-	if v.Major == 0 && v.Minor == 0 && v.Patch == 0 {
+	if v.Major == 0 && v.Minor == 0 {
 		return "dev"
 	}
-	if v.Patch == 0 {
-		return fmt.Sprintf("%d.%d", v.Major, v.Minor)
-	}
-	return fmt.Sprintf("%d.%d.%d", v.Major, v.Minor, v.Patch)
+	return fmt.Sprintf("%d.%d.%d", v.Major, v.Minor)
 }
 
 // IsOlderThan returns true if this version is older than the other version by at least minorVersionDiff minor versions.
