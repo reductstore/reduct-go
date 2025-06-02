@@ -311,7 +311,6 @@ type QueryResponse struct {
 
 type QueryResult struct {
 	records <-chan *ReadableRecord
-	done    bool
 }
 
 func (q *QueryResult) Records() <-chan *ReadableRecord {
@@ -412,45 +411,59 @@ func (b *Bucket) executeQuery(ctx context.Context, entry string, option *QueryOp
 	return resp, nil
 }
 
-// fetchAndParseBatchedRecords fetches and parses batched records with optional polling
+// fetchAndParseBatchedRecords fetches and parses batched records with optional polling.
+//
 // It takes a context, entry name, query ID, whether to continue polling on 204 status,
 // polling interval duration, and whether this is a HEAD request.
 // It returns a QueryResult containing the records channel or an error.
 // If continueQuery is true and a 204 status is received, it will wait pollInterval
 // duration and retry the request once before returning.
 func (b *Bucket) fetchAndParseBatchedRecords(ctx context.Context, entry string, id int64, continueQuery bool, pollInterval time.Duration, head bool) (*QueryResult, error) {
-	record, err := b.readBatchedRecords(ctx, entry, id, head)
-	if err != nil {
-		var apiErr model.APIError
-		if errors.As(err, &apiErr) && apiErr.Status == 204 {
-			// Only poll if we got a 204
-			if continueQuery {
+	// Create a buffered channel for records
+	records := make(chan *ReadableRecord, 100)
+
+	// Start a goroutine to continuously fetch records
+	go func() {
+		defer close(records)
+
+		for {
+			record, err := b.readBatchedRecords(ctx, entry, id, head)
+			if err != nil {
+				var apiErr model.APIError
+				if errors.As(err, &apiErr) && apiErr.Status == 204 {
+					if continueQuery {
+						select {
+						case <-ctx.Done():
+							return
+						case <-time.After(pollInterval):
+							continue // Try again after polling interval
+						}
+					}
+					return
+				}
+				return
+			}
+
+			if record == nil {
+				return
+			}
+
+			// Send records to channel
+			for rec := range record {
 				select {
 				case <-ctx.Done():
-					return &QueryResult{done: true}, fmt.Errorf("context canceled")
-				case <-time.After(pollInterval):
-					// Try one more time after polling
-					record, err = b.readBatchedRecords(ctx, entry, id, head)
-					if err != nil {
-						return &QueryResult{done: true}, err
+				case records <- rec:
+					if rec.IsLast() {
+						return
 					}
-					return &QueryResult{
-						records: record,
-						done:    true,
-					}, nil
 				}
 			}
-			return &QueryResult{done: true}, nil
+
 		}
-		return &QueryResult{done: true}, err
-	}
-	if record == nil {
-		return &QueryResult{done: true}, nil
-	}
+	}()
 
 	return &QueryResult{
-		records: record,
-		done:    false,
+		records: records,
 	}, nil
 }
 
@@ -555,7 +568,8 @@ func (b *Bucket) readBatchedRecords(ctx context.Context, entry string, id int64,
 
 					body = io.NopCloser(bytes.NewReader(buffer[:parsed.Size]))
 				}
-				record := NewReadableRecord(ts, parsed.Size, isLastInBatch || isLastInQuery, body, parsed.Labels, parsed.ContentType)
+				record := NewReadableRecord(ts, parsed.Size, isLastInQuery, body, parsed.Labels, parsed.ContentType)
+				record.lastInBatch = isLastInBatch
 				select {
 				case <-ctx.Done():
 					err = fmt.Errorf("context canceled")
