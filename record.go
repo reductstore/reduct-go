@@ -110,6 +110,7 @@ type ReadableRecord struct {
 	time        int64
 	size        int64
 	last        bool
+	lastInBatch bool
 	stream      io.Reader
 	labels      LabelMap
 	contentType string
@@ -139,7 +140,7 @@ func NewReadableRecord(time int64,
 //
 // note: calling read on last record will return no error, but may return empty data.
 //
-// calling this method on a last record is not recommended, use Stream() instead.
+// calling this method on a last record is not recommended, use Stream().Read() instead.
 func (r *ReadableRecord) Read() ([]byte, error) {
 	// read from stream
 	data, err := io.ReadAll(r.stream)
@@ -149,6 +150,9 @@ func (r *ReadableRecord) Read() ([]byte, error) {
 	return data, nil
 }
 
+// ReadAsString reads the record from the stream and returns it as a string.
+//
+// use this to read the record at once.
 func (r *ReadableRecord) ReadAsString() (string, error) {
 	data, err := io.ReadAll(r.stream)
 	if err != nil {
@@ -157,26 +161,44 @@ func (r *ReadableRecord) ReadAsString() (string, error) {
 	return string(data), nil
 }
 
+// Stream returns the stream of the record.
+//
+// use this to read the record in a stream.
 func (r *ReadableRecord) Stream() io.Reader {
 	return r.stream
 }
 
+// IsLast is true if this is the last record in the query.
+//
+// This is not the same as IsLastInBatch(), which is true if this is the last record in the batch.
 func (r *ReadableRecord) IsLast() bool {
 	return r.last
 }
 
+// IsLastInBatch is true if this is the last record in the batch.
+//
+// This is not the same as IsLast(), which is true if this is the last record in the query.
+// use this to check if the record is the last in the batch which has to be processed in a stream.
+func (r *ReadableRecord) IsLastInBatch() bool {
+	return r.lastInBatch
+}
+
+// Size returns the size of the record.
 func (r *ReadableRecord) Size() int64 {
 	return r.size
 }
 
+// Labels returns the labels of the record.
 func (r *ReadableRecord) Labels() LabelMap {
 	return r.labels
 }
 
+// ContentType returns the content type of the record.
 func (r *ReadableRecord) ContentType() string {
 	return r.contentType
 }
 
+// Time returns the timestamp of the record.
 func (r *ReadableRecord) Time() int64 {
 	return r.time
 }

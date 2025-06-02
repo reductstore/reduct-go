@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"testing"
 	"time"
@@ -61,7 +60,7 @@ func TestEntryRecordWriterAndReader(t *testing.T) {
 	err = writer.Write(dataByte)
 	assert.NoError(t, err)
 	// we should be able to read the written data
-	reader, err := mainTestBucket.BeginRead(context.Background(), "entry-1", nil, false)
+	reader, err := mainTestBucket.BeginRead(context.Background(), "entry-1", nil)
 	assert.NoError(t, err)
 	// read the data
 	resp, err := reader.Read()
@@ -88,7 +87,7 @@ func TestEntryRecordStreamWriterAndChunkedReader(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Begin reading with streaming reader
-	reader, err := mainTestBucket.BeginRead(context.Background(), "entry-stream-chunked", nil, false)
+	reader, err := mainTestBucket.BeginRead(context.Background(), "entry-stream-chunked", nil)
 	assert.NoError(t, err)
 	// Stream read in chunks (e.g., 16 bytes at a time)
 	streamReader := reader.Stream()
@@ -136,8 +135,7 @@ func TestUpdateRecordLabels(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Verify the labels were updated correctly
-	tsStr := fmt.Sprintf("%d", now)
-	record, err := mainTestBucket.BeginRead(ctx, entry, &tsStr, true)
+	record, err := mainTestBucket.BeginMetadataRead(ctx, entry, &now)
 	assert.NoError(t, err)
 	labels := record.Labels()
 	assert.NotContains(t, labels, "initial", "initial label should be removed")

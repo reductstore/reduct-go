@@ -87,14 +87,36 @@ func (b *Bucket) Remove(ctx context.Context) error {
 //   - ctx: Context for cancellation and timeout control.
 //   - entry: Name of the entry to read from.
 //   - ts: Optional A UNIX timestamp in microseconds. If it is empty, the latest record is returned.
-//   - id: Optional A query ID to read the next record in the query. If it is set, the parameter ts is ignored.
-//   - head: If true, performs a HEAD request to fetch metadata only.
 //
 // It returns a readableRecord or an error if the read fails.
 //
 // Use readableRecord.Read() to read the content of the reader.
-func (b *Bucket) BeginRead(ctx context.Context, entry string, id *string, head bool) (*ReadableRecord, error) {
-	return b.readRecord(ctx, entry, id, head)
+func (b *Bucket) BeginRead(ctx context.Context, entry string, ts *int64) (*ReadableRecord, error) {
+	if ts == nil {
+		// If no timestamp is provided, read the latest record
+		return b.readRecord(ctx, entry, nil, false)
+	}
+	strTs := strconv.FormatInt(*ts, 10)
+	return b.readRecord(ctx, entry, &strTs, false)
+}
+
+// BeginMetadataRead starts reading only the metadata of a record from the given entry at the specified timestamp.
+//
+// Parameters:
+//   - ctx: Context for cancellation and timeout control.
+//   - entry: Name of the entry to read from.
+//   - ts: Optional A UNIX timestamp in microseconds. If it is empty, the latest record is returned.
+//
+// It returns a readableRecord or an error if the read fails.
+//
+// Use readableRecord.Read() to read the content of the reader.
+func (b *Bucket) BeginMetadataRead(ctx context.Context, entry string, ts *int64) (*ReadableRecord, error) {
+	// If no timestamp is provided, read the latest record
+	if ts == nil {
+		return b.readRecord(ctx, entry, nil, true)
+	}
+	strTs := strconv.FormatInt(*ts, 10)
+	return b.readRecord(ctx, entry, &strTs, true)
 }
 
 // readRecord prepares an entry record reader from the reductstore server.
@@ -179,15 +201,15 @@ func (b *Bucket) BeginWrite(_ context.Context, entry string, options *WriteOptio
 }
 
 func (b *Bucket) BeginWriteBatch(_ context.Context, entry string) *Batch {
-	return NewBatch(b.Name, entry, b.HTTPClient, BatchWrite)
+	return newBatch(b.Name, entry, b.HTTPClient, BatchWrite)
 }
 
 func (b *Bucket) BeginUpdateBatch(_ context.Context, entry string) *Batch {
-	return NewBatch(b.Name, entry, b.HTTPClient, BatchUpdate)
+	return newBatch(b.Name, entry, b.HTTPClient, BatchUpdate)
 }
 
 func (b *Bucket) BeginRemoveBatch(_ context.Context, entry string) *Batch {
-	return NewBatch(b.Name, entry, b.HTTPClient, BatchRemove)
+	return newBatch(b.Name, entry, b.HTTPClient, BatchRemove)
 }
 
 // QueryType represents the type of query to run.
@@ -289,7 +311,6 @@ type QueryResponse struct {
 
 type QueryResult struct {
 	records <-chan *ReadableRecord
-	done    bool
 }
 
 func (q *QueryResult) Records() <-chan *ReadableRecord {
@@ -390,45 +411,59 @@ func (b *Bucket) executeQuery(ctx context.Context, entry string, option *QueryOp
 	return resp, nil
 }
 
-// fetchAndParseBatchedRecords fetches and parses batched records with optional polling
+// fetchAndParseBatchedRecords fetches and parses batched records with optional polling.
+//
 // It takes a context, entry name, query ID, whether to continue polling on 204 status,
 // polling interval duration, and whether this is a HEAD request.
 // It returns a QueryResult containing the records channel or an error.
 // If continueQuery is true and a 204 status is received, it will wait pollInterval
 // duration and retry the request once before returning.
 func (b *Bucket) fetchAndParseBatchedRecords(ctx context.Context, entry string, id int64, continueQuery bool, pollInterval time.Duration, head bool) (*QueryResult, error) {
-	record, err := b.readBatchedRecords(ctx, entry, id, head)
-	if err != nil {
-		var apiErr model.APIError
-		if errors.As(err, &apiErr) && apiErr.Status == 204 {
-			// Only poll if we got a 204
-			if continueQuery {
+	// Create a buffered channel for records
+	records := make(chan *ReadableRecord, 100)
+
+	// Start a goroutine to continuously fetch records
+	go func() {
+		defer close(records)
+
+		for {
+			record, err := b.readBatchedRecords(ctx, entry, id, head)
+			if err != nil {
+				var apiErr model.APIError
+				if errors.As(err, &apiErr) && apiErr.Status == 204 {
+					if continueQuery {
+						select {
+						case <-ctx.Done():
+							return
+						case <-time.After(pollInterval):
+							continue // Try again after polling interval
+						}
+					}
+					return
+				}
+				return
+			}
+
+			if record == nil {
+				return
+			}
+
+			// Send records to channel
+			for rec := range record {
 				select {
 				case <-ctx.Done():
-					return &QueryResult{done: true}, fmt.Errorf("context canceled")
-				case <-time.After(pollInterval):
-					// Try one more time after polling
-					record, err = b.readBatchedRecords(ctx, entry, id, head)
-					if err != nil {
-						return &QueryResult{done: true}, err
+				case records <- rec:
+					if rec.IsLast() {
+						return
 					}
-					return &QueryResult{
-						records: record,
-						done:    true,
-					}, nil
 				}
 			}
-			return &QueryResult{done: true}, nil
+
 		}
-		return &QueryResult{done: true}, err
-	}
-	if record == nil {
-		return &QueryResult{done: true}, nil
-	}
+	}()
 
 	return &QueryResult{
-		records: record,
-		done:    false,
+		records: records,
 	}, nil
 }
 
@@ -533,7 +568,8 @@ func (b *Bucket) readBatchedRecords(ctx context.Context, entry string, id int64,
 
 					body = io.NopCloser(bytes.NewReader(buffer[:parsed.Size]))
 				}
-				record := NewReadableRecord(ts, parsed.Size, isLastInBatch || isLastInQuery, body, parsed.Labels, parsed.ContentType)
+				record := NewReadableRecord(ts, parsed.Size, isLastInQuery, body, parsed.Labels, parsed.ContentType)
+				record.lastInBatch = isLastInBatch
 				select {
 				case <-ctx.Done():
 					err = fmt.Errorf("context canceled")
