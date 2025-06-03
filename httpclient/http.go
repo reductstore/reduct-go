@@ -296,7 +296,7 @@ func (c *httpClient) Post(ctx context.Context, path string, requestBody, respons
 	}
 	return nil
 }
-func handleHTTPError(err error) error {
+func handleHTTPError(err error, status int) error {
 	var opErr *net.OpError
 	var urlErr *url.Error
 
@@ -335,7 +335,7 @@ func handleHTTPError(err error) error {
 		return &model.APIError{
 			Message:  err.Error(),
 			Original: err,
-			Status:   Unknown,
+			Status:   status,
 		}
 	}
 }
@@ -471,7 +471,7 @@ func (c *httpClient) Do(req *http.Request) (*http.Response, error) {
 	resp, err := c.client.Do(req)
 
 	if err != nil {
-		return resp, handleHTTPError(err)
+		return resp, handleHTTPError(err, resp.StatusCode)
 	}
 	reductError := resp.Header.Get("X-Reduct-Error")
 
