@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 1.15.0-beta.4 - 2025-06-03
+
+### Fixed
+
+* Use response status code by default, [PR-27](https://github.com/reductstore/reduct-go/pull/27)
+
 ## 1.15.0-beta.3 - 2025-06-03
 
 ### Fixed
