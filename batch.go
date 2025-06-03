@@ -26,6 +26,8 @@ const (
 
 type LabelMap map[string]any
 
+type ErrorMap map[int64]model.APIError
+
 type Record struct {
 	Data        []byte
 	ContentType string
@@ -91,7 +93,9 @@ func (b *Batch) AddOnlyTimestamp(ts int64) {
 }
 
 // Write writes the batch to the server.
-func (b *Batch) Write(ctx context.Context) error {
+// It returns an ErrorMap with timestamps as keys and APIError as values for individual records that failed to write.
+// If the whole batch fails, it returns an error.
+func (b *Batch) Write(ctx context.Context) (ErrorMap, error) {
 	b.mu.Lock()
 	headers := http.Header{}
 	var chunks bytes.Buffer
@@ -141,41 +145,38 @@ func (b *Batch) Write(ctx context.Context) error {
 		req, err = b.httpClient.NewRequestWithContext(ctx, http.MethodDelete, path, nil)
 		req.Header = headers
 	default:
-		return errors.New("invalid batch type")
+		return nil, errors.New("invalid batch type")
 	}
 
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	resp, err := b.httpClient.Do(req)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer resp.Body.Close()
 
-	errs := make([]string, 0)
+	errs := ErrorMap{}
 	for key, val := range resp.Header {
-		if strings.HasPrefix(strings.ToLower(key), "x-reduct-error-") {
-			tsStr := strings.TrimPrefix(key, "x-reduct-error-")
+		lowerKey := strings.ToLower(key)
+		if strings.HasPrefix(lowerKey, "x-reduct-error-") {
+			tsStr := strings.TrimPrefix(lowerKey, "x-reduct-error-")
 			ts, err := strconv.ParseInt(tsStr, 10, 64)
 			if err == nil {
 				parts := strings.SplitN(val[0], ",", 2)
 				if len(parts) == 2 {
 					code, _ := strconv.Atoi(parts[0]) //nolint:errcheck //not needed
-					errs = append(errs, fmt.Sprintf("error code %d: %s for timestamp %d", code, parts[1], ts))
+					errs[ts] = model.APIError{
+						Status:  code,
+						Message: parts[1],
+					}
 				}
 			}
 		}
 	}
-	if len(errs) > 0 {
-		return model.APIError{
-			Status:   http.StatusBadRequest,
-			Message:  "some records failed to write",
-			Original: errors.New(strings.Join(errs, "\n")),
-		}
-	}
-	return nil
+	return errs, nil
 }
 
 // Size returns the total size of the batch.

@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/reductstore/reduct-go/model"
+
 	"github.com/stretchr/testify/assert"
 )
 
@@ -32,8 +34,9 @@ func TestBatchReading(t *testing.T) {
 	batch.Add(ts2, jsonData2, "application/json", map[string]any{"label2": "value2"})
 
 	// Write the batch
-	err = batch.Write(context.Background())
+	errMap, err := batch.Write(context.Background())
 	assert.NoError(t, err)
+	assert.Empty(t, errMap, "All records should be written successfully")
 
 	// Now test reading the batch
 	t.Run("read batch records", func(t *testing.T) {
@@ -89,8 +92,10 @@ func TestFetchAndParseBatchedRecords(t *testing.T) {
 
 	batch.Add(ts1, jsonData1, "application/json", map[string]any{"label1": "value1"})
 	batch.Add(ts2, jsonData2, "application/json", map[string]any{"label2": "value2"})
-	err = batch.Write(context.Background())
+	errMap, err := batch.Write(context.Background())
 	assert.NoError(t, err)
+	assert.Empty(t, errMap, "All records should be written successfully")
+
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	// get the id of the last record
@@ -128,8 +133,9 @@ func TestBatchWrite(t *testing.T) {
 	batch.Add(now+2, []byte("data3"), "text/plain", nil)
 
 	// Write batch
-	err := batch.Write(ctx)
+	errMap, err := batch.Write(ctx)
 	assert.NoError(t, err)
+	assert.Empty(t, errMap, "All records should be written successfully")
 
 	// Verify records
 	queryResult, err := mainTestBucket.Query(ctx, entry, nil)
@@ -157,14 +163,16 @@ func TestBatchUpdate(t *testing.T) {
 	now := time.Now().UTC().UnixMicro()
 	batch.Add(now, []byte("data1"), "text/plain", nil)
 	batch.Add(now+1, []byte("data2"), "text/plain", nil)
-	err := batch.Write(ctx)
+	errMap, err := batch.Write(ctx)
 	assert.NoError(t, err)
+	assert.Empty(t, errMap, "All records should be written successfully")
 
 	// Update labels
 	updateBatch := mainTestBucket.BeginUpdateBatch(ctx, entry)
 	updateBatch.AddOnlyLabels(now, map[string]any{"updated": "true"})
-	err = updateBatch.Write(ctx)
+	errMap, err = updateBatch.Write(ctx)
 	assert.NoError(t, err)
+	assert.Empty(t, errMap, "All records should be written successfully")
 
 	queryOptions := NewQueryOptionsBuilder().
 		WithStart(now).
@@ -189,13 +197,15 @@ func TestBatchRemove(t *testing.T) {
 	now := time.Now().UTC().UnixMicro()
 	batch.Add(now, []byte("data1"), "text/plain", nil)
 	batch.Add(now+1, []byte("data2"), "text/plain", nil)
-	err := batch.Write(ctx)
+	errMap, err := batch.Write(ctx)
 	assert.NoError(t, err)
+	assert.Empty(t, errMap, "All records should be written successfully")
 
 	// Remove records
 	removeBatch := mainTestBucket.BeginRemoveBatch(ctx, entry)
-	err = removeBatch.Write(ctx)
+	errMap, err = removeBatch.Write(ctx)
 	assert.NoError(t, err)
+	assert.Empty(t, errMap, "All records should be removed successfully")
 
 	// Verify removal
 	queryOptions := NewQueryOptionsBuilder().
@@ -219,13 +229,25 @@ func TestBatchErrors(t *testing.T) {
 
 	// Test empty batch
 	batch := mainTestBucket.BeginWriteBatch(ctx, entry)
-	err := batch.Write(ctx)
+	errMap, err := batch.Write(ctx)
 	assert.Error(t, err)
+	assert.Empty(t, errMap, "Empty batch should return an error but no error map")
 
 	// Test batch with invalid timestamps
 	batch = mainTestBucket.BeginWriteBatch(ctx, entry)
-	tm := -1
-	batch.Add(int64(tm), []byte("invalid"), "text/plain", nil)
-	err = batch.Write(ctx)
-	assert.Error(t, err)
+	tm := int64(1)
+	batch.Add(tm, []byte("new"), "text/plain", nil)
+	errMap, err = batch.Write(ctx)
+	assert.NoError(t, err)
+	assert.Empty(t, errMap, "All records should be written successfully")
+
+	batch.Clear()
+	batch.Add(tm, []byte("exists"), "text/plain", nil)
+	errMap, err = batch.Write(ctx)
+
+	assert.NoError(t, err)
+	assert.Equal(t, errMap[tm], model.APIError{
+		Status:  409,
+		Message: fmt.Sprintf("A record with timestamp %d already exists", tm),
+	})
 }
