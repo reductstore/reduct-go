@@ -114,14 +114,10 @@ func (c *httpClient) Put(ctx context.Context, path string, requestBody, response
 		}
 	}
 	resp, err := c.Do(req)
-	reductError := resp.Header.Get("X-Reduct-Error")
 	if err != nil {
-		return &model.APIError{
-			Message:  err.Error(),
-			Original: err,
-			Status:   resp.StatusCode,
-		}
+		return err
 	}
+	reductError := resp.Header.Get("X-Reduct-Error")
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
 			fmt.Printf("Failed to close response body: %v", err)
@@ -190,7 +186,7 @@ func (c *httpClient) Patch(ctx context.Context, path string, requestBody, respon
 	resp, err := c.Do(req)
 
 	if err != nil {
-		return handleHTTPError(err)
+		return err
 	}
 	reductError := resp.Header.Get("X-Reduct-Error")
 
@@ -260,7 +256,7 @@ func (c *httpClient) Post(ctx context.Context, path string, requestBody, respons
 	resp, err := c.Do(req)
 
 	if err != nil {
-		return handleHTTPError(err)
+		return err
 	}
 	reductError := resp.Header.Get("X-Reduct-Error")
 
@@ -357,7 +353,7 @@ func (c *httpClient) Get(ctx context.Context, path string, responseData any) err
 	resp, err := c.Do(req)
 
 	if err != nil {
-		return handleHTTPError(err)
+		return err
 	}
 	reductError := resp.Header.Get("X-Reduct-Error")
 
@@ -411,7 +407,7 @@ func (c *httpClient) Head(ctx context.Context, path string) error {
 	resp, err := c.Do(req)
 
 	if err != nil {
-		return handleHTTPError(err)
+		return err
 	}
 	reductError := resp.Header.Get("X-Reduct-Error")
 
@@ -446,7 +442,7 @@ func (c *httpClient) Delete(ctx context.Context, path string) error {
 	resp, err := c.Do(req)
 
 	if err != nil {
-		return handleHTTPError(err)
+		return err
 	}
 	reductError := resp.Header.Get("X-Reduct-Error")
 
