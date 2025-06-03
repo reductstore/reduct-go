@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Fixed
+
+* HTTP error handling and down casting, [PR-28](https://github.com/reductstore/reduct-go/pull/28)
+
 ## 1.15.0-beta.4 - 2025-06-03
 
 ### Fixed
@@ -17,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-* Avoid double error wrapping [PR-26](https://github.com/reductstore/reduct-go/pull/26)
+* Avoid double HTTP error wrapping [PR-26](https://github.com/reductstore/reduct-go/pull/26)
 
 ## 1.15.0-beta.2 - 2025-06-03
 
