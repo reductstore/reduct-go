@@ -20,8 +20,9 @@ func TestQuery(t *testing.T) {
 	batch.Add(now+1, []byte("data0"), "application/json", map[string]any{"type": "test0"})
 	batch.Add(now+2, []byte("data1"), "application/json", map[string]any{"type": "test1"})
 	batch.Add(now+3, []byte("data2"), "application/json", map[string]any{"type": "test2"})
-	err := batch.Write(ctx)
+	errMap, err := batch.Write(ctx)
 	assert.NoError(t, err)
+	assert.Empty(t, errMap, "All records should be written successfully")
 
 	t.Run("Query All Records", func(t *testing.T) {
 		queryResult, err := mainTestBucket.Query(ctx, entry, nil)
@@ -161,8 +162,9 @@ func TestQuery(t *testing.T) {
 		batch.Add(now+3, largeData, "application/octet-stream", map[string]any{"size": "large"})
 
 		// Write the batch
-		err := batch.Write(ctx)
+		errMap, err := batch.Write(ctx)
 		assert.NoError(t, err)
+		assert.Empty(t, errMap, "All records should be written successfully")
 
 		// Query and verify the records
 		queryResult, err := mainTestBucket.Query(ctx, entryLarge, nil)
@@ -213,8 +215,9 @@ func TestRemoveQuery(t *testing.T) {
 	batch.Add(now, []byte("data1"), "text/plain", map[string]any{"type": "test1"})
 	batch.Add(now+1, []byte("data2"), "text/plain", map[string]any{"type": "test2"})
 	batch.Add(now+1000, []byte("data3"), "text/plain", map[string]any{"type": "test3"})
-	err := batch.Write(ctx)
+	errMap, err := batch.Write(ctx)
 	assert.NoError(t, err)
+	assert.Empty(t, errMap, "All records should be written successfully")
 
 	t.Run("Remove by Time Range", func(t *testing.T) {
 		start := now
@@ -252,8 +255,9 @@ func TestRemoveQuery(t *testing.T) {
 		batch.Add(now, []byte("data3"), "text/plain", map[string]any{"type": "testExisting"})
 		batch.Add(now+1, []byte("data4"), "text/plain", map[string]any{"type": "testRemoved"})
 		batch.Add(now+2, []byte("data5"), "text/plain", map[string]any{"type": "testRemoved"})
-		err := batch.Write(ctx)
+		errMap, err := batch.Write(ctx)
 		assert.NoError(t, err)
+		assert.Empty(t, errMap, "All records should be written successfully")
 
 		options := &QueryOptions{
 			When: map[string]any{"&type": map[string]any{"$eq": "testRemoved"}},
