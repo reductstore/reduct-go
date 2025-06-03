@@ -471,7 +471,10 @@ func (c *httpClient) Do(req *http.Request) (*http.Response, error) {
 	resp, err := c.client.Do(req)
 
 	if err != nil {
-		return resp, handleHTTPError(err, resp.StatusCode)
+		if resp != nil {
+			return resp, handleHTTPError(err, resp.StatusCode)
+		}
+		return nil, handleHTTPError(err, 0)
 	}
 	reductError := resp.Header.Get("X-Reduct-Error")
 
