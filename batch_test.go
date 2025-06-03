@@ -4,9 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/reductstore/reduct-go/model"
 	"testing"
 	"time"
+
+	"github.com/reductstore/reduct-go/model"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -204,6 +205,7 @@ func TestBatchRemove(t *testing.T) {
 	removeBatch := mainTestBucket.BeginRemoveBatch(ctx, entry)
 	errMap, err = removeBatch.Write(ctx)
 	assert.NoError(t, err)
+	assert.Empty(t, errMap, "All records should be removed successfully")
 
 	// Verify removal
 	queryOptions := NewQueryOptionsBuilder().
