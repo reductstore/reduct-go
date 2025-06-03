@@ -156,13 +156,13 @@ func (c *ReductClient) CreateOrGetBucket(ctx context.Context, name string, setti
 
 	err := c.HTTPClient.Post(ctx, fmt.Sprintf("/b/%s", name), settings, nil)
 	if err != nil {
-		if apiErr, ok := err.(*model.APIError); ok { //nolint:errorlint //error.As does not give access to status check
+		apiErr := model.APIError{}
+		if errors.As(err, &apiErr) {
 			if apiErr.Status == 409 {
 				return c.GetBucket(ctx, name)
 			}
-		} else {
-			return Bucket{}, err
 		}
+		return Bucket{}, err
 	}
 
 	return NewBucket(name, c.HTTPClient), err
