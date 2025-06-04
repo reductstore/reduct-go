@@ -22,6 +22,18 @@ func TestCreateOrGetBucket_Success(t *testing.T) {
 func teardownToken(tokenName string) {
 	_ = client.RemoveToken(context.Background(), tokenName) //nolint:errcheck // ignore error.
 }
+func TestGetBucketInfo(t *testing.T) {
+	settings := model.NewBucketSettingBuilder().
+		WithQuotaSize(1024 * 1024 * 1024).
+		WithQuotaType(model.QuotaTypeFifo).
+		WithMaxBlockRecords(1000).WithMaxBlockSize(1024).Build()
+	bucket, err := client.CreateOrGetBucket(context.Background(), "test-bucket", &settings)
+	assert.NoError(t, err)
+	info, err := bucket.GetInfo(context.Background())
+	assert.NoError(t, err)
+	assert.Equal(t, "test-bucket", info.Name)
+	assert.Equal(t, int64(0), info.Size)
+}
 
 func TestTokenAPI(t *testing.T) {
 	tokenName := "test-token"
