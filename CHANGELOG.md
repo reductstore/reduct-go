@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Remove unnecessary WritableRecord.WithSize method, [PR-29](https://github.com/reductstore/reduct-go/pull/29)
 
+### Added
+
+* `Bucket.GetEntries()` and `Bucket.GetFullInfo()` methods, [PR-30](https://github.com/reductstore/reduct-go/pull/30)
+
 ## 1.15.0-beta.5 - 2025-06-03
 
 ### Fixed

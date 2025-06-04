@@ -22,6 +22,64 @@ func TestCreateOrGetBucket_Success(t *testing.T) {
 func teardownToken(tokenName string) {
 	_ = client.RemoveToken(context.Background(), tokenName) //nolint:errcheck // ignore error.
 }
+func TestGetBucketInfo(t *testing.T) {
+	settings := model.NewBucketSettingBuilder().
+		WithQuotaSize(1024 * 1024 * 1024).
+		WithQuotaType(model.QuotaTypeFifo).
+		WithMaxBlockRecords(1000).WithMaxBlockSize(1024).Build()
+	bucket, err := client.CreateOrGetBucket(context.Background(), "test-bucket", &settings)
+	assert.NoError(t, err)
+	info, err := bucket.GetInfo(context.Background())
+	assert.NoError(t, err)
+	assert.Equal(t, "test-bucket", info.Name)
+	assert.Equal(t, int64(0), info.Size)
+}
+func TestGetBucketEntries(t *testing.T) {
+	settings := model.NewBucketSettingBuilder().
+		WithQuotaSize(1024 * 1024 * 1024).
+		WithQuotaType(model.QuotaTypeFifo).
+		WithMaxBlockRecords(1000).WithMaxBlockSize(1024).Build()
+	bucket, err := client.CreateOrGetBucket(context.Background(), "test-bucket", &settings)
+	assert.NoError(t, err)
+	entries, err := bucket.GetEntries(context.Background())
+	assert.NoError(t, err)
+	assert.Equal(t, 0, len(entries))
+	// write some entries
+	writer := bucket.BeginWrite(context.Background(), "test-entry", nil)
+	err = writer.Write([]byte("test-data"))
+	assert.NoError(t, err)
+	entries, err = bucket.GetEntries(context.Background())
+	assert.NoError(t, err)
+	assert.Equal(t, 1, len(entries))
+	// delete bucket
+	err = client.RemoveBucket(context.Background(), "test-bucket")
+	assert.NoError(t, err)
+}
+
+func TestGetBucketFullInfo(t *testing.T) {
+	settings := model.NewBucketSettingBuilder().
+		WithQuotaSize(1024 * 1024 * 1024).
+		WithQuotaType(model.QuotaTypeFifo).
+		WithMaxBlockRecords(1000).WithMaxBlockSize(1024).Build()
+	bucket, err := client.CreateOrGetBucket(context.Background(), "test-bucket", &settings)
+	assert.NoError(t, err)
+	info, err := bucket.GetFullInfo(context.Background())
+	assert.NoError(t, err)
+	assert.Equal(t, "test-bucket", info.Info.Name)
+	assert.Equal(t, model.QuotaTypeFifo, info.Settings.QuotaType)
+	assert.Equal(t, int64(1024*1024*1024), info.Settings.QuotaSize)
+	assert.Equal(t, 0, len(info.Entries))
+	// write some entries
+	writer := bucket.BeginWrite(context.Background(), "test-entry", nil)
+	err = writer.Write([]byte("test-data"))
+	assert.NoError(t, err)
+	info, err = bucket.GetFullInfo(context.Background())
+	assert.NoError(t, err)
+	assert.Equal(t, 1, len(info.Entries))
+	// delete bucket
+	err = client.RemoveBucket(context.Background(), "test-bucket")
+	assert.NoError(t, err)
+}
 
 func TestTokenAPI(t *testing.T) {
 	tokenName := "test-token"
