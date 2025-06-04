@@ -46,7 +46,8 @@ func TestGetBucketEntries(t *testing.T) {
 	assert.Equal(t, 0, len(entries))
 	// write some entries
 	writer := bucket.BeginWrite(context.Background(), "test-entry", nil)
-	writer.Write([]byte("test-data"))
+	err = writer.Write([]byte("test-data"))
+	assert.NoError(t, err)
 	entries, err = bucket.GetEntries(context.Background())
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(entries))
@@ -70,7 +71,8 @@ func TestGetBucketFullInfo(t *testing.T) {
 	assert.Equal(t, 0, len(info.Entries))
 	// write some entries
 	writer := bucket.BeginWrite(context.Background(), "test-entry", nil)
-	writer.Write([]byte("test-data"))
+	err = writer.Write([]byte("test-data"))
+	assert.NoError(t, err)
 	info, err = bucket.GetFullInfo(context.Background())
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(info.Entries))
