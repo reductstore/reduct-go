@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 1.15.0-beta.7 - 2025-06-04
+
 ### Breaking Changes
 
 * Remove unnecessary WritableRecord.WithSize method, [PR-29](https://github.com/reductstore/reduct-go/pull/29)
@@ -34,7 +36,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Avoid double HTTP error wrapping [PR-26](https://github.com/reductstore/reduct-go/pull/26)
 
 ## 1.15.0-beta.2 - 2025-06-03
-
 
 ### Breaking Changes
 
