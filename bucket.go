@@ -47,6 +47,24 @@ func (b *Bucket) GetInfo(ctx context.Context) (model.BucketInfo, error) {
 	return resp.Info, nil
 }
 
+func (b *Bucket) GetEntries(ctx context.Context) ([]model.EntryInfo, error) {
+	resp := &model.FullBucketDetail{}
+	err := b.HTTPClient.Get(ctx, fmt.Sprintf("/b/%s", b.Name), resp)
+	if err != nil {
+		return nil, err
+	}
+	return resp.Entries, nil
+}
+
+func (b *Bucket) GetFullInfo(ctx context.Context) (model.FullBucketDetail, error) {
+	resp := model.FullBucketDetail{}
+	err := b.HTTPClient.Get(ctx, fmt.Sprintf("/b/%s", b.Name), &resp)
+	if err != nil {
+		return model.FullBucketDetail{}, err
+	}
+	return resp, nil
+}
+
 func (b *Bucket) GetSettings(ctx context.Context) (model.BucketSetting, error) {
 	resp := &model.FullBucketDetail{}
 	err := b.HTTPClient.Get(ctx, fmt.Sprintf("/b/%s", b.Name), resp)
