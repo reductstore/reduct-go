@@ -120,9 +120,10 @@ func TestUpdateRecordLabels(t *testing.T) {
 		Labels: LabelMap{
 			"initial": "value",
 		},
+		Size: int64(9),
 	})
 	reader := bytes.NewReader([]byte("test data"))
-	writer = writer.WithSize(9)
+
 	err := writer.Write(reader)
 	assert.NoError(t, err)
 
