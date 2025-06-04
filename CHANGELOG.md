@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Remove unnecessary WritableRecord.WithSize method, [PR-29](https://github.com/reductstore/reduct-go/pull/29)
 
+### Added
+
+* `Bucket.GetEntries()` and `Bucket.GetFullInfo()` methods, [PR-30](https://github.com/reductstore/reduct-go/pull/30)
+
 ## 1.15.0-beta.5 - 2025-06-03
 
 ### Fixed
@@ -47,4 +51,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Implement Token API, [PR-15](https://github.com/reductstore/reduct-go/pull/15)
 * Implement Replication API, [PR-16](https://github.com/reductstore/reduct-go/pull/16)
 * Improvement for Bucket API, [PR-18](https://github.com/reductstore/reduct-go/pull/18)
-* Improvement for Bucket API, [PR-30](https://github.com/reductstore/reduct-go/pull/30)

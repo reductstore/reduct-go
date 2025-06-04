@@ -133,7 +133,7 @@ func (c *ReductClient) GetBucket(ctx context.Context, name string) (Bucket, erro
 	if err != nil {
 		return Bucket{}, model.APIError{Message: err.Error(), Original: err}
 	}
-	return NewBucket(name, c.HTTPClient), nil
+	return newBucket(name, c.HTTPClient), nil
 }
 
 func (c *ReductClient) CreateBucket(ctx context.Context, name string, settings *model.BucketSetting) (Bucket, error) {
@@ -146,7 +146,7 @@ func (c *ReductClient) CreateBucket(ctx context.Context, name string, settings *
 		return Bucket{}, err
 	}
 
-	return NewBucket(name, c.HTTPClient), err
+	return newBucket(name, c.HTTPClient), err
 }
 
 func (c *ReductClient) CreateOrGetBucket(ctx context.Context, name string, settings *model.BucketSetting) (Bucket, error) {
@@ -165,7 +165,7 @@ func (c *ReductClient) CreateOrGetBucket(ctx context.Context, name string, setti
 		return Bucket{}, err
 	}
 
-	return NewBucket(name, c.HTTPClient), err
+	return newBucket(name, c.HTTPClient), err
 }
 
 // CheckBucketExists checks if a bucket exists.

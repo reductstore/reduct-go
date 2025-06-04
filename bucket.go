@@ -23,13 +23,14 @@ type Bucket struct {
 	Name       string
 }
 
-func NewBucket(name string, httpClient httpclient.HTTPClient) Bucket {
+func newBucket(name string, httpClient httpclient.HTTPClient) Bucket {
 	return Bucket{
 		HTTPClient: httpClient,
 		Name:       name,
 	}
 }
 
+// CheckExists checks if the bucket exists on the server.
 func (b *Bucket) CheckExists(ctx context.Context) (bool, error) {
 	err := b.HTTPClient.Head(ctx, fmt.Sprintf("/b/%s", b.Name))
 	if err != nil {
@@ -38,6 +39,7 @@ func (b *Bucket) CheckExists(ctx context.Context) (bool, error) {
 	return true, nil
 }
 
+// GetInfo retrieves the basic information about the bucket, such as its name, size, and quota.
 func (b *Bucket) GetInfo(ctx context.Context) (model.BucketInfo, error) {
 	resp := &model.FullBucketDetail{}
 	err := b.HTTPClient.Get(ctx, fmt.Sprintf("/b/%s", b.Name), resp)
@@ -47,6 +49,7 @@ func (b *Bucket) GetInfo(ctx context.Context) (model.BucketInfo, error) {
 	return resp.Info, nil
 }
 
+// GetEntries retrieves the list of entries and their information in the bucket.
 func (b *Bucket) GetEntries(ctx context.Context) ([]model.EntryInfo, error) {
 	resp := &model.FullBucketDetail{}
 	err := b.HTTPClient.Get(ctx, fmt.Sprintf("/b/%s", b.Name), resp)
@@ -56,6 +59,7 @@ func (b *Bucket) GetEntries(ctx context.Context) ([]model.EntryInfo, error) {
 	return resp.Entries, nil
 }
 
+// GetFullInfo retrieves the full details of the bucket, including its settings and entries.
 func (b *Bucket) GetFullInfo(ctx context.Context) (model.FullBucketDetail, error) {
 	resp := model.FullBucketDetail{}
 	err := b.HTTPClient.Get(ctx, fmt.Sprintf("/b/%s", b.Name), &resp)
@@ -65,6 +69,7 @@ func (b *Bucket) GetFullInfo(ctx context.Context) (model.FullBucketDetail, error
 	return resp, nil
 }
 
+// GetSettings retrieves the settings of the bucket.
 func (b *Bucket) GetSettings(ctx context.Context) (model.BucketSetting, error) {
 	resp := &model.FullBucketDetail{}
 	err := b.HTTPClient.Get(ctx, fmt.Sprintf("/b/%s", b.Name), resp)
@@ -74,6 +79,7 @@ func (b *Bucket) GetSettings(ctx context.Context) (model.BucketSetting, error) {
 	return resp.Settings, nil
 }
 
+// SetSettings updates the settings of the bucket.
 func (b *Bucket) SetSettings(ctx context.Context, settings model.BucketSetting) error {
 	err := b.HTTPClient.Put(ctx, fmt.Sprintf("/b/%s", b.Name), settings, nil)
 	if err != nil {
@@ -82,6 +88,7 @@ func (b *Bucket) SetSettings(ctx context.Context, settings model.BucketSetting) 
 	return nil
 }
 
+// Rename changes the name of the bucket.
 func (b *Bucket) Rename(ctx context.Context, newName string) error {
 	err := b.HTTPClient.Put(ctx, fmt.Sprintf("/b/%s/rename", b.Name), map[string]string{"new_name": newName}, nil)
 	if err != nil {
@@ -91,6 +98,7 @@ func (b *Bucket) Rename(ctx context.Context, newName string) error {
 	return nil
 }
 
+// Remove deletes the bucket from the server.
 func (b *Bucket) Remove(ctx context.Context) error {
 	err := b.HTTPClient.Delete(ctx, fmt.Sprintf("/b/%s", b.Name))
 	if err != nil {
