@@ -24,11 +24,6 @@ type WritableRecord struct {
 	options    WriteOptions
 }
 
-func (w *WritableRecord) WithSize(size int64) *WritableRecord {
-	w.options.Size = size
-	return w
-}
-
 func NewWritableRecord(bucketName string,
 	entryName string,
 	httpClient httpclient.HTTPClient,
