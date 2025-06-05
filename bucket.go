@@ -41,8 +41,8 @@ func (b *Bucket) CheckExists(ctx context.Context) (bool, error) {
 
 // GetInfo retrieves the basic information about the bucket, such as its name, size, and quota.
 func (b *Bucket) GetInfo(ctx context.Context) (model.BucketInfo, error) {
-	resp := &model.FullBucketDetail{}
-	err := b.HTTPClient.Get(ctx, fmt.Sprintf("/b/%s", b.Name), resp)
+	resp := model.FullBucketDetail{}
+	err := b.HTTPClient.Get(ctx, fmt.Sprintf("/b/%s", b.Name), &resp)
 	if err != nil {
 		return model.BucketInfo{}, err
 	}
@@ -81,11 +81,7 @@ func (b *Bucket) GetSettings(ctx context.Context) (model.BucketSetting, error) {
 
 // SetSettings updates the settings of the bucket.
 func (b *Bucket) SetSettings(ctx context.Context, settings model.BucketSetting) error {
-	err := b.HTTPClient.Put(ctx, fmt.Sprintf("/b/%s", b.Name), settings, nil)
-	if err != nil {
-		return err
-	}
-	return nil
+	return b.HTTPClient.Put(ctx, fmt.Sprintf("/b/%s", b.Name), settings, nil)
 }
 
 // Rename changes the name of the bucket.
@@ -100,11 +96,36 @@ func (b *Bucket) Rename(ctx context.Context, newName string) error {
 
 // Remove deletes the bucket from the server.
 func (b *Bucket) Remove(ctx context.Context) error {
-	err := b.HTTPClient.Delete(ctx, fmt.Sprintf("/b/%s", b.Name))
-	if err != nil {
-		return err
-	}
-	return nil
+	return b.HTTPClient.Delete(ctx, fmt.Sprintf("/b/%s", b.Name))
+}
+
+// RemoveRecord removes a record from the bucket.
+//
+// Parameters:
+//   - ctx: Context for cancellation and timeout control.
+//   - entry: Name of the entry to remove the record from.
+//   - ts: Timestamp of the record to remove in microseconds.
+func (b *Bucket) RemoveRecord(ctx context.Context, entry string, ts int64) error {
+	return b.HTTPClient.Delete(ctx, fmt.Sprintf("/b/%s/%s?ts=%d", b.Name, entry, ts))
+}
+
+// RemoveEntry removes an entry from the bucket and all its records.
+//
+// Parameters:
+//   - ctx: Context for cancellation and timeout control.
+//   - entry: Name of the entry to remove.
+func (b *Bucket) RemoveEntry(ctx context.Context, entry string) error {
+	return b.HTTPClient.Delete(ctx, fmt.Sprintf("/b/%s/%s", b.Name, entry))
+}
+
+// RenameEntry renames an entry.
+//
+// Parameters:
+//   - ctx: Context for cancellation and timeout control.
+//   - entry: Name of the entry to rename.
+//   - newName: New name of the entry.
+func (b *Bucket) RenameEntry(ctx context.Context, entry, newName string) error {
+	return b.HTTPClient.Put(ctx, fmt.Sprintf("/b/%s/%s/rename", b.Name, entry), map[string]string{"new_name": newName}, nil)
 }
 
 // BeginRead starts reading a record from the given entry at the specified timestamp.

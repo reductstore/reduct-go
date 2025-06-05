@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/reductstore/reduct-go/model"
 	"github.com/stretchr/testify/assert"
@@ -76,6 +77,78 @@ func TestGetBucketFullInfo(t *testing.T) {
 	info, err = bucket.GetFullInfo(context.Background())
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(info.Entries))
+	// delete bucket
+	err = client.RemoveBucket(context.Background(), "test-bucket")
+	assert.NoError(t, err)
+}
+
+func TestBucketRemoveEntry(t *testing.T) {
+	settings := model.NewBucketSettingBuilder().
+		WithQuotaSize(1024 * 1024 * 1024).
+		WithQuotaType(model.QuotaTypeFifo).
+		WithMaxBlockRecords(1000).WithMaxBlockSize(1024).Build()
+	bucket, err := client.CreateOrGetBucket(context.Background(), "test-bucket", &settings)
+	assert.NoError(t, err)
+	writer := bucket.BeginWrite(context.Background(), "test-entry", nil)
+	err = writer.Write([]byte("test-data"))
+	assert.NoError(t, err)
+	err = bucket.RemoveEntry(context.Background(), "test-entry")
+	assert.NoError(t, err)
+	entries, err := bucket.GetEntries(context.Background())
+	assert.NoError(t, err)
+	assert.Equal(t, 0, len(entries))
+	// delete bucket
+	err = client.RemoveBucket(context.Background(), "test-bucket")
+	assert.NoError(t, err)
+}
+
+func TestBucketRenameEntry(t *testing.T) {
+	settings := model.NewBucketSettingBuilder().
+		WithQuotaSize(1024 * 1024 * 1024).
+		WithQuotaType(model.QuotaTypeFifo).
+		WithMaxBlockRecords(1000).WithMaxBlockSize(1024).Build()
+	bucket, err := client.CreateOrGetBucket(context.Background(), "test-bucket", &settings)
+	assert.NoError(t, err)
+	writer := bucket.BeginWrite(context.Background(), "test-entry", nil)
+	err = writer.Write([]byte("test-data"))
+	assert.NoError(t, err)
+	err = bucket.RenameEntry(context.Background(), "test-entry", "test-entry-new")
+	assert.NoError(t, err)
+	entries, err := bucket.GetEntries(context.Background())
+	assert.NoError(t, err)
+	assert.Equal(t, 1, len(entries))
+	assert.Equal(t, "test-entry-new", entries[0].Name)
+	// delete bucket
+	err = client.RemoveBucket(context.Background(), "test-bucket")
+	assert.NoError(t, err)
+}
+
+func TestBucketRemoveRecord(t *testing.T) {
+	settings := model.NewBucketSettingBuilder().
+		WithQuotaSize(1024 * 1024 * 1024).
+		WithQuotaType(model.QuotaTypeFifo).
+		WithMaxBlockRecords(1000).WithMaxBlockSize(1024).Build()
+	bucket, err := client.CreateOrGetBucket(context.Background(), "test-bucket", &settings)
+	assert.NoError(t, err)
+	// write a record
+	now := time.Now().UTC().UnixMicro()
+	writer := bucket.BeginWrite(context.Background(), "test-entry", &WriteOptions{Timestamp: now})
+	err = writer.Write([]byte("test-data"))
+	assert.NoError(t, err)
+	// remove the record
+	err = bucket.RemoveRecord(context.Background(), "test-entry", now)
+	assert.NoError(t, err)
+	// check if the record is removed
+	record, err := bucket.BeginRead(context.Background(), "test-entry", &now)
+	assert.Error(t, err, "Could not read record after removal")
+	data, err := record.Read()
+	assert.Error(t, err, "Expected error when reading removed record")
+	assert.Equal(t, "", string(data))
+	// check if the entry is not removed
+	entries, err := bucket.GetEntries(context.Background())
+	assert.NoError(t, err)
+	assert.Equal(t, 1, len(entries))
+
 	// delete bucket
 	err = client.RemoveBucket(context.Background(), "test-bucket")
 	assert.NoError(t, err)
