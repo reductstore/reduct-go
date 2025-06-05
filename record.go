@@ -137,6 +137,18 @@ func NewReadableRecord(time int64,
 //
 // calling this method on a last record is not recommended, use Stream().Read() instead.
 func (r *ReadableRecord) Read() ([]byte, error) {
+	if r == nil {
+		return nil, model.APIError{
+			Status:  400,
+			Message: "record is nil, nothing to read",
+		}
+	}
+	if r.stream == nil {
+		return nil, model.APIError{
+			Status:  400,
+			Message: "stream is nil, nothing to read",
+		}
+	}
 	// read from stream
 	data, err := io.ReadAll(r.stream)
 	if err != nil {
