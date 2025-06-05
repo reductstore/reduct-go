@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+* * Missing methods  `RemoveEntry`, `RemoveRecord`, `RenamEntry`, [PR-32](https://github.com/reductstore/reduct-go/pull/32)
+
 ## 1.15.0-beta.7 - 2025-06-04
 
 ### Breaking Changes
@@ -52,4 +56,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Implement Token API, [PR-15](https://github.com/reductstore/reduct-go/pull/15)
 * Implement Replication API, [PR-16](https://github.com/reductstore/reduct-go/pull/16)
 * Improvement for Bucket API, [PR-18](https://github.com/reductstore/reduct-go/pull/18)
-* Missing methods added for Bucket API, [PR-32](https://github.com/reductstore/reduct-go/pull/32)

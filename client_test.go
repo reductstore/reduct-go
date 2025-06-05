@@ -140,9 +140,9 @@ func TestBucketRemoveRecord(t *testing.T) {
 	assert.NoError(t, err)
 	// check if the record is removed
 	record, err := bucket.BeginRead(context.Background(), "test-entry", &now)
-	assert.Error(t, err) // no record to read error
+	assert.Error(t, err, "Could not read record after removal")
 	data, err := record.Read()
-	assert.Error(t, err) // no record to read error
+	assert.Error(t, err, "Expected error when reading removed record")
 	assert.Equal(t, "", string(data))
 	// check if the entry is not removed
 	entries, err := bucket.GetEntries(context.Background())
