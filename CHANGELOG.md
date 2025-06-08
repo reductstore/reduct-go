@@ -7,11 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Breaking Changes
+
+* Remove deprecated `Include` and `Exclude` methods from `ReplicationSettings`, [PR-33](https://github.com/reductstore/reduct-go/pull/33)
+
 ## 1.15.0-beta.8 - 2025-06-05
 
 ### Added
 
-* * Missing methods  `RemoveEntry`, `RemoveRecord`, `RenamEntry`, [PR-32](https://github.com/reductstore/reduct-go/pull/32)
+* Missing methods  `RemoveEntry`, `RemoveRecord`, `RenamEntry`, [PR-32](https://github.com/reductstore/reduct-go/pull/32)
 
 ## 1.15.0-beta.7 - 2025-06-04
 
