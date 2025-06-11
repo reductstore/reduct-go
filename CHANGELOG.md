@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 1.15.0 - 2025-06-11
+
 ### Breaking Changes
 
 * Remove deprecated `Include` and `Exclude` methods from `ReplicationSettings`, [PR-33](https://github.com/reductstore/reduct-go/pull/33)
