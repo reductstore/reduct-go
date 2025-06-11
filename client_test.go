@@ -136,19 +136,18 @@ func TestBucketRemoveRecord(t *testing.T) {
 	err = writer.Write([]byte("test-data"))
 	assert.NoError(t, err)
 	// remove the record
-	fromTimestamp := now - 1000
-	err = bucket.RemoveRecord(context.Background(), "test-entry", fromTimestamp)
+	err = bucket.RemoveRecord(context.Background(), "test-entry", now)
 	assert.NoError(t, err)
 	// check if the record is removed
 	record, err := bucket.BeginRead(context.Background(), "test-entry", &now)
-	assert.NoError(t, err)
+	assert.Error(t, err, "Could not read record after removal")
 	data, err := record.Read()
-	assert.NoError(t, err)
+	assert.Error(t, err, "Expected error when reading removed record")
 	assert.Equal(t, "", string(data))
 	// check if the entry is not removed
 	entries, err := bucket.GetEntries(context.Background())
 	assert.NoError(t, err)
-	assert.Equal(t, 0, len(entries))
+	assert.Equal(t, 1, len(entries))
 
 	// delete bucket
 	err = client.RemoveBucket(context.Background(), "test-bucket")

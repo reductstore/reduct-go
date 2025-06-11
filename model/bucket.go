@@ -5,7 +5,7 @@ package model
 
 import "encoding/json"
 
-// Represents bucket settings.
+// BucketSetting represents bucket settings.
 type BucketSetting struct {
 	// max block content_length in bytes
 	MaxBlockSize int64 `json:"max_block_size,omitempty"`
@@ -40,7 +40,7 @@ type BucketSettingBuilder struct {
 	bucket BucketSetting
 }
 
-// NewBucketSetting creates a new instance of BucketSettingBuilder with can be used to build a BucketSetting object.
+// NewBucketSettingBuilder creates a new instance of BucketSettingBuilder with can be used to build a BucketSetting object.
 func NewBucketSettingBuilder() *BucketSettingBuilder {
 	return &BucketSettingBuilder{}
 }
@@ -70,7 +70,7 @@ func (b *BucketSettingBuilder) WithQuotaType(qt QuotaType) *BucketSettingBuilder
 	return b
 }
 
-// Builds BucketSetting model.
+// Build Builds BucketSetting model.
 // Uses ["NONE"] QotaType if not set.
 func (b *BucketSettingBuilder) Build() BucketSetting {
 	if b.bucket.QuotaType == "" {
@@ -87,7 +87,7 @@ const (
 	QuotaTypeHard QuotaType = "HARD"
 )
 
-// Represents information about a bucket.
+// BucketInfo Represents information about a bucket.
 type BucketInfo struct {
 	// bucket name
 	Name string `json:"name"`
@@ -103,7 +103,7 @@ type BucketInfo struct {
 	IsProvisioned bool `json:"is_provisioned"`
 }
 
-// Information about the bucket in JSON format.
+// FullBucketDetail Information about the bucket in JSON format.
 type FullBucketDetail struct {
 	// bucket settings
 	Settings BucketSetting `json:"settings"`
