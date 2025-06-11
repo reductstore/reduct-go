@@ -12,14 +12,6 @@ type ReplicationSettings struct {
 	DstToken string `json:"dst_token,omitempty"`
 	// List of entries to replicate. If empty, all entries are replicated. Wildcards are supported.
 	Entries []string `json:"entries,omitempty"`
-	// List of labels a records must include. If empty, all records are replicated.
-	// If a few labels are specified, a record must include all of them.
-	// Deprecated: use When instead
-	Include map[string]any `json:"include,omitempty"`
-	// List of labels a records must not include. If empty, all records are replicated.
-	// If a few labels are specified, a record must not include any of them.
-	// Deprecated: use When instead
-	Exclude map[string]any `json:"exclude,omitempty"`
 	// Replicate a record every S seconds
 	EachS int64 `json:"each_s,omitempty"`
 	// Replicate every Nth record
