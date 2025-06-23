@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 1.15.0 - 2025-06-11
 
+* Use embeding instead of init for version file loading [PR-34](https://github.com/reductstore/reduct-go/pull/34)
+
 ### Breaking Changes
 
 * Remove deprecated `Include` and `Exclude` methods from `ReplicationSettings`, [PR-33](https://github.com/reductstore/reduct-go/pull/33)
@@ -46,7 +48,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 * Avoid double HTTP error wrapping [PR-26](https://github.com/reductstore/reduct-go/pull/26)
-* Use embeding instead of init for version file loading [PR-34](https://github.com/reductstore/reduct-go/pull/34)
+
 ## 1.15.0-beta.2 - 2025-06-03
 
 ### Breaking Changes
