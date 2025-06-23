@@ -81,7 +81,7 @@ jobs:
       - name: Check if tag matches version
         run: |
           TAG_VERSION="${GITHUB_REF#refs/tags/}"
-          FILE_VERSION="v$(cat VERSION)"
+          FILE_VERSION="v$(cat model/VERSION)"
 
           echo "Tag: $TAG_VERSION"
           echo "Version in file: $FILE_VERSION"
