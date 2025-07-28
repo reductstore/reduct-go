@@ -276,7 +276,7 @@ type QueryOptions struct {
 	Ext          any           `json:"ext,omitempty"`
 	Strict       bool          `json:"strict,omitempty"`
 	Continuous   bool          `json:"continuous,omitempty"`
-	Head         bool          `json:"-"`
+	Head         bool          `json:"head,omitempty"`
 	PollInterval time.Duration `json:"-"`
 }
 type QueryOptionsBuilder struct {
