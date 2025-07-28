@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Fixed
+
+* Fix serialization of `head` flag in `QueryOptions`, [PR-37](https://github.com/reductstore/reduct-go/pull/37)
+
 ## 1.15.1 - 2025-06-23
 
 ### Fixed
