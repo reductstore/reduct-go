@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 1.16.0 - 2025-08-31
+
+Align with ReductStore v1.16 API.
+
 ## 1.15.2 - 2025-07-28
 
 ### Fixed
