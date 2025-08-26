@@ -8,11 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Unreleased
 
 
+## 1.16.1  - 2025-08-26
+
 ### Fixed
 
 - Fix error handling in Client.GetBucket method, [PR-38](https://github.com/reductstore/reduct-go/pull/38)
 
-## 1.16.0 - 2025-08-31
+## 1.16.0 - 2025-07-31
 
 Align with ReductStore v1.16 API.
 
