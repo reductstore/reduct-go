@@ -2,6 +2,7 @@ package reductgo
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"testing"
 	"time"
@@ -20,9 +21,16 @@ func TestCreateOrGetBucket_Success(t *testing.T) {
 	assert.Equal(t, bucket.Name, mainTestBucket.Name)
 }
 
-func teardownToken(tokenName string) {
-	_ = client.RemoveToken(context.Background(), tokenName) //nolint:errcheck // ignore error.
+func TestGetBucket_NotFound(t *testing.T) {
+	_, err := client.GetBucket(context.Background(), "not-exist-bucket")
+	assert.Error(t, err)
+
+	var apiErr model.APIError
+	errors.As(err, &apiErr)
+	assert.Equal(t, 404, apiErr.Status)
+	assert.Equal(t, "bucket 'not-exist-bucket' not found", apiErr.Message)
 }
+
 func TestGetBucketInfo(t *testing.T) {
 	settings := model.NewBucketSettingBuilder().
 		WithQuotaSize(1024 * 1024 * 1024).
@@ -339,4 +347,8 @@ func TestReductStoreHealth(t *testing.T) {
 	}()
 
 	assert.Equal(t, resp.StatusCode, http.StatusOK)
+}
+
+func teardownToken(tokenName string) {
+	_ = client.RemoveToken(context.Background(), tokenName) //nolint:errcheck // ignore error.
 }
