@@ -131,7 +131,9 @@ func (c *ReductClient) GetBuckets(ctx context.Context) ([]model.BucketInfo, erro
 func (c *ReductClient) GetBucket(ctx context.Context, name string) (Bucket, error) {
 	err := c.HTTPClient.Get(ctx, fmt.Sprintf(`/b/%s`, name), nil)
 	if err != nil {
-		apiErr, ok := err.(model.APIError)
+		var apiErr model.APIError
+		ok := errors.As(err, &apiErr)
+
 		if ok && apiErr.Status == 404 {
 			return Bucket{}, model.APIError{Status: 404, Message: fmt.Sprintf("bucket '%s' not found", name), Original: err}
 		}
