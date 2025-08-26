@@ -122,7 +122,7 @@ func (c *ReductClient) GetBuckets(ctx context.Context) ([]model.BucketInfo, erro
 	var buckets map[string][]model.BucketInfo
 	err := c.HTTPClient.Get(ctx, "/list", &buckets)
 	if err != nil {
-		return nil, model.APIError{Message: err.Error(), Original: err}
+		return nil, err
 	}
 	return buckets["buckets"], nil
 }
@@ -131,8 +131,14 @@ func (c *ReductClient) GetBuckets(ctx context.Context) ([]model.BucketInfo, erro
 func (c *ReductClient) GetBucket(ctx context.Context, name string) (Bucket, error) {
 	err := c.HTTPClient.Get(ctx, fmt.Sprintf(`/b/%s`, name), nil)
 	if err != nil {
-		return Bucket{}, model.APIError{Message: err.Error(), Original: err}
+		apiErr, ok := err.(model.APIError)
+		if ok && apiErr.Status == 404 {
+			return Bucket{}, model.APIError{Status: 404, Message: fmt.Sprintf("bucket '%s' not found", name), Original: err}
+		} else {
+			return Bucket{}, err
+		}
 	}
+
 	return newBucket(name, c.HTTPClient), nil
 }
 
