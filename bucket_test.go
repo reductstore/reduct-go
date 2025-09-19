@@ -195,15 +195,12 @@ func TestQueryLinkExpired(t *testing.T) {
 }
 
 func downloadLink(t *testing.T, link string) int {
+	t.Helper()
+
 	client := http.Client{}
 	resp, err := client.Get(link)
-	defer func(Body io.ReadCloser) {
-		err := Body.Close()
-		if err != nil {
-			t.Fatal(err)
-		}
-	}(resp.Body)
-
+	assert.NoError(t, err)
+	err = resp.Body.Close()
 	assert.NoError(t, err)
 	return resp.StatusCode
 }
