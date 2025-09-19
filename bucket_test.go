@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"net/http"
 	"testing"
 	"time"
 
@@ -147,4 +148,56 @@ func TestRemoveBucket(t *testing.T) {
 	// check if the bucket exists
 	err := mainTestBucket.Remove(context.Background())
 	assert.NoError(t, err)
+}
+
+func TestQueryLink(t *testing.T) {
+	ctx := context.Background()
+
+	writer := mainTestBucket.BeginWrite(context.Background(), "entry-1", nil)
+	err := writer.Write([]byte("test data for query link"))
+	assert.NoError(t, err)
+
+	builder := NewQueryLinkOptionsBuilder()
+	link, err := mainTestBucket.CreateQueryLink(ctx, "entry-1", builder.Build())
+
+	assert.NoError(t, err)
+
+	// download the link content
+	client := http.Client{}
+	resp, err := client.Get(link)
+
+	assert.NoError(t, err)
+	assert.Equal(t, resp.StatusCode, 200)
+}
+
+func TestQueryLinkWithOptions(t *testing.T) {
+	ctx := context.Background()
+
+	builder := NewQueryLinkOptionsBuilder().WithRecordIndex(1)
+	link, err := mainTestBucket.CreateQueryLink(ctx, "entry-1", builder.Build())
+
+	assert.NoError(t, err)
+	assert.Contains(t, link, "r=1")
+
+	builder = NewQueryLinkOptionsBuilder().WithFileName("custom-name.txt")
+	link, err = mainTestBucket.CreateQueryLink(ctx, "entry-1", builder.Build())
+
+	assert.NoError(t, err)
+	assert.Contains(t, link, "/custom-name.txt?")
+}
+
+func TestQueryLinkExpired(t *testing.T) {
+	ctx := context.Background()
+
+	builder := NewQueryLinkOptionsBuilder().WithExpireAt(time.Now().Add(-time.Hour).Unix())
+	link, err := mainTestBucket.CreateQueryLink(ctx, "entry-1", builder.Build())
+
+	assert.NoError(t, err)
+
+	// download the link content
+	client := http.Client{}
+	resp, err := client.Get(link)
+
+	assert.NoError(t, err)
+	assert.Equal(t, resp.StatusCode, 422)
 }
