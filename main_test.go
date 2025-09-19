@@ -10,6 +10,7 @@ import (
 
 	"github.com/reductstore/reduct-go/httpclient"
 	"github.com/reductstore/reduct-go/model"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/joho/godotenv"
 )
@@ -71,4 +72,15 @@ func TestMain(m *testing.M) {
 	// delete the created bucket with all its entries
 	tearDown()
 	os.Exit(code)
+}
+
+func skipVersingLower(t *testing.T, version string) {
+	t.Helper()
+
+	ctx := context.Background()
+	info, err := client.GetInfo(ctx)
+	assert.NoError(t, err)
+	if info.Version < version {
+		t.Skip("skipping test, server version is lower than " + version)
+	}
 }

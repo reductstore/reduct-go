@@ -144,15 +144,10 @@ func TestUpdateRecordLabels(t *testing.T) {
 	assert.Equal(t, "new-value", labels["updated"], "updated label should be set")
 }
 
-func TestRemoveBucket(t *testing.T) {
-	// check if the bucket exists
-	err := mainTestBucket.Remove(context.Background())
-	assert.NoError(t, err)
-}
-
 func TestQueryLink(t *testing.T) {
-	ctx := context.Background()
+	skipVersingLower(t, "1.17.0")
 
+	ctx := context.Background()
 	writer := mainTestBucket.BeginWrite(context.Background(), "entry-1", nil)
 	err := writer.Write([]byte("test data for query link"))
 	assert.NoError(t, err)
@@ -167,6 +162,8 @@ func TestQueryLink(t *testing.T) {
 }
 
 func TestQueryLinkWithOptions(t *testing.T) {
+	skipVersingLower(t, "1.17.0")
+
 	ctx := context.Background()
 
 	builder := NewQueryLinkOptionsBuilder().WithRecordIndex(1)
@@ -183,6 +180,8 @@ func TestQueryLinkWithOptions(t *testing.T) {
 }
 
 func TestQueryLinkExpired(t *testing.T) {
+	skipVersingLower(t, "1.17.0")
+
 	ctx := context.Background()
 
 	builder := NewQueryLinkOptionsBuilder().WithExpireAt(time.Now().Add(-time.Hour).Unix())
@@ -203,4 +202,10 @@ func downloadLink(t *testing.T, link string) int {
 	err = resp.Body.Close()
 	assert.NoError(t, err)
 	return resp.StatusCode
+}
+
+func TestRemoveBucket(t *testing.T) {
+	// check if the bucket exists
+	err := mainTestBucket.Remove(context.Background())
+	assert.NoError(t, err)
 }
