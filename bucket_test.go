@@ -162,9 +162,8 @@ func TestQueryLink(t *testing.T) {
 
 	assert.NoError(t, err)
 
-	resp := downloadLink(t, link)
-	assert.NoError(t, err)
-	assert.Equal(t, resp.StatusCode, 200)
+	status := downloadLink(t, link)
+	assert.Equal(t, status, 200)
 }
 
 func TestQueryLinkWithOptions(t *testing.T) {
@@ -191,11 +190,11 @@ func TestQueryLinkExpired(t *testing.T) {
 
 	assert.NoError(t, err)
 
-	resp := downloadLink(t, link)
-	assert.Equal(t, resp.StatusCode, 422)
+	status := downloadLink(t, link)
+	assert.Equal(t, status, 422)
 }
 
-func downloadLink(t *testing.T, link string) *http.Response {
+func downloadLink(t *testing.T, link string) int {
 	client := http.Client{}
 	resp, err := client.Get(link)
 	defer func(Body io.ReadCloser) {
@@ -206,5 +205,5 @@ func downloadLink(t *testing.T, link string) *http.Response {
 	}(resp.Body)
 
 	assert.NoError(t, err)
-	return resp
+	return resp.StatusCode
 }
