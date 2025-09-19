@@ -162,10 +162,7 @@ func TestQueryLink(t *testing.T) {
 
 	assert.NoError(t, err)
 
-	// download the link content
-	client := http.Client{}
-	resp, err := client.Get(link)
-
+	resp := downloadLink(t, link)
 	assert.NoError(t, err)
 	assert.Equal(t, resp.StatusCode, 200)
 }
@@ -194,10 +191,20 @@ func TestQueryLinkExpired(t *testing.T) {
 
 	assert.NoError(t, err)
 
-	// download the link content
+	resp := downloadLink(t, link)
+	assert.Equal(t, resp.StatusCode, 422)
+}
+
+func downloadLink(t *testing.T, link string) *http.Response {
 	client := http.Client{}
 	resp, err := client.Get(link)
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
+	}(resp.Body)
 
 	assert.NoError(t, err)
-	assert.Equal(t, resp.StatusCode, 422)
+	return resp
 }
