@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+- Implement Bucket.CreateQueryLink method, [PR-39](https://github.com/reductstore/reduct-go/pull/39)
 
 ## 1.16.1  - 2025-08-26
 
