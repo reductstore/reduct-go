@@ -69,7 +69,7 @@ jobs:
         run: |
           go mod tidy
           go clean -testcache
-          RS_API_TOKEN=SOME_TOKEN go test -v ./...
+          RS_API_TOKEN=SOME_TOKEN go test -p 1 -v ./...
   
   check_tag:
     runs-on: ubuntu-latest

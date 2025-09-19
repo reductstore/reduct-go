@@ -755,3 +755,81 @@ func (b *Bucket) Update(ctx context.Context, entry string, ts int64, labels Labe
 
 	return nil
 }
+
+type QueryLinkOptions struct {
+	Bucket       string       `json:"bucket"`
+	Entry        string       `json:"entry"`
+	QueryOptions QueryOptions `json:"query"`
+	RecordIndex  int          `json:"index"`
+	ExpireAt     int64        `json:"expire_at"`
+	fileName     string
+}
+
+type QueryLinkOptionsBuilder struct {
+	options QueryLinkOptions
+}
+
+// NewQueryLinkOptionsBuilder creates a new QueryLinkOptionsBuilder with default values.
+// Default values:
+//   - recordIndex: 0 (first record)
+//   - expireAt: 24 hours from now
+func NewQueryLinkOptionsBuilder() *QueryLinkOptionsBuilder {
+	return &QueryLinkOptionsBuilder{
+		options: QueryLinkOptions{
+			RecordIndex: 0,
+			ExpireAt:    time.Now().Add(24 * time.Hour).Unix(),
+			QueryOptions: QueryOptions{
+				QueryType: QueryTypeQuery,
+			},
+		},
+	}
+}
+
+func (q *QueryLinkOptionsBuilder) WithQueryOptions(queryOptions QueryOptions) *QueryLinkOptionsBuilder {
+	q.options.QueryOptions = queryOptions
+	return q
+}
+
+func (q *QueryLinkOptionsBuilder) WithRecordIndex(recordIndex int) *QueryLinkOptionsBuilder {
+	q.options.RecordIndex = recordIndex
+	return q
+}
+
+func (q *QueryLinkOptionsBuilder) WithExpireAt(expireAt int64) *QueryLinkOptionsBuilder {
+	q.options.ExpireAt = expireAt
+	return q
+}
+
+func (q *QueryLinkOptionsBuilder) WithFileName(fileName string) *QueryLinkOptionsBuilder {
+	q.options.fileName = fileName
+	return q
+}
+
+func (q *QueryLinkOptionsBuilder) Build() QueryLinkOptions {
+	return q.options
+}
+
+// CreateQueryLink creates a temporary link to access a specific record from a query.
+//
+// Parameters:
+//   - ctx: Context for cancellation and timeout control
+//   - entry: Name of the entry to query
+//   - options: Options for the query link, including query parameters, record index, expiration time, and file name
+func (b *Bucket) CreateQueryLink(ctx context.Context, entry string, options QueryLinkOptions) (string, error) {
+	options.Bucket = b.Name
+	options.Entry = entry
+	if options.fileName == "" {
+		options.fileName = fmt.Sprintf("%s_%d", entry, options.RecordIndex)
+	}
+
+	response := struct {
+		Link string `json:"link"`
+	}{}
+
+	err := b.HTTPClient.Post(ctx, fmt.Sprintf("/links/%s", options.fileName), options, &response)
+	if err != nil {
+		return "", err
+	}
+
+	return response.Link, nil
+}
