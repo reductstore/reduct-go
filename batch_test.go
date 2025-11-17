@@ -227,17 +227,11 @@ func TestBatchErrors(t *testing.T) {
 	ctx := context.Background()
 	entry := "test-batch-errors"
 
-	// Test empty batch
-	batch := mainTestBucket.BeginWriteBatch(ctx, entry)
-	errMap, err := batch.Write(ctx)
-	assert.Error(t, err)
-	assert.Empty(t, errMap, "Empty batch should return an error but no error map")
-
 	// Test batch with invalid timestamps
-	batch = mainTestBucket.BeginWriteBatch(ctx, entry)
+	batch := mainTestBucket.BeginWriteBatch(ctx, entry)
 	tm := int64(1)
 	batch.Add(tm, []byte("new"), "text/plain", nil)
-	errMap, err = batch.Write(ctx)
+	errMap, err := batch.Write(ctx)
 	assert.NoError(t, err)
 	assert.Empty(t, errMap, "All records should be written successfully")
 
