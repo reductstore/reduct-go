@@ -762,6 +762,7 @@ type QueryLinkOptions struct {
 	QueryOptions QueryOptions `json:"query"`
 	RecordIndex  int          `json:"index"`
 	ExpireAt     int64        `json:"expire_at"`
+	BaseURL      string       `json:"base_url,omitempty"`
 	fileName     string
 }
 
@@ -802,6 +803,11 @@ func (q *QueryLinkOptionsBuilder) WithExpireAt(expireAt int64) *QueryLinkOptions
 
 func (q *QueryLinkOptionsBuilder) WithFileName(fileName string) *QueryLinkOptionsBuilder {
 	q.options.fileName = fileName
+	return q
+}
+
+func (q *QueryLinkOptionsBuilder) WithBaseURL(baseURL string) *QueryLinkOptionsBuilder {
+	q.options.BaseURL = baseURL
 	return q
 }
 
