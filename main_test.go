@@ -74,10 +74,9 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
-func skipVersingLower(t *testing.T, version string) {
+func skipVersingLower(t *testing.T, ctx context.Context, version string) {
 	t.Helper()
 
-	ctx := context.Background()
 	info, err := client.GetInfo(ctx)
 	assert.NoError(t, err)
 	if info.Version < version {

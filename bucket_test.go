@@ -145,9 +145,8 @@ func TestUpdateRecordLabels(t *testing.T) {
 }
 
 func TestQueryLink(t *testing.T) {
-	skipVersingLower(t, "1.17.0")
-
 	ctx := context.Background()
+	skipVersingLower(t, ctx, "1.17.0")
 	writer := mainTestBucket.BeginWrite(context.Background(), "entry-1", nil)
 	err := writer.Write([]byte("test data for query link"))
 	assert.NoError(t, err)
@@ -162,9 +161,8 @@ func TestQueryLink(t *testing.T) {
 }
 
 func TestQueryLinkWithOptions(t *testing.T) {
-	skipVersingLower(t, "1.17.0")
-
 	ctx := context.Background()
+	skipVersingLower(t, ctx, "1.17.0")
 
 	builder := NewQueryLinkOptionsBuilder().WithRecordIndex(1)
 	link, err := mainTestBucket.CreateQueryLink(ctx, "entry-1", builder.Build())
@@ -180,9 +178,8 @@ func TestQueryLinkWithOptions(t *testing.T) {
 }
 
 func TestQueryLinkExpired(t *testing.T) {
-	skipVersingLower(t, "1.17.0")
-
 	ctx := context.Background()
+	skipVersingLower(t, ctx, "1.17.0")
 
 	builder := NewQueryLinkOptionsBuilder().WithExpireAt(time.Now().Add(-time.Hour).Unix())
 	link, err := mainTestBucket.CreateQueryLink(ctx, "entry-1", builder.Build())
