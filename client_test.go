@@ -279,6 +279,8 @@ func TestReplicationAPI(t *testing.T) {
 		task, err := client.GetReplicationTask(ctx, "test-replication")
 		assert.NoError(t, err)
 		assert.Equal(t, task.Info.Name, "test-replication")
+
+		skipVersingLower(ctx, t, "1.18.0")
 		assert.Equal(t, model.ReplicationModeEnabled, task.Info.Mode)
 	})
 	t.Run("UpdateReplicationTask", func(t *testing.T) {
