@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Support replication modes (`enabled`, `paused`, `disabled`) and mode updates, aligned with server PR-1065
+- Support replication modes (`enabled`, `paused`, `disabled`), [PR-44](https://github.com/reductstore/reduct-go/pull/44)
 
 ## 1.17.1 - 2025-11-17
 
