@@ -74,7 +74,7 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
-func skipVersingLower(t *testing.T, ctx context.Context, version string) {
+func skipVersingLower(ctx context.Context, t *testing.T, version string) {
 	t.Helper()
 
 	info, err := client.GetInfo(ctx)
