@@ -286,6 +286,8 @@ func TestReplicationAPI(t *testing.T) {
 		assert.NoError(t, err)
 	})
 	t.Run("SetReplicationMode", func(t *testing.T) {
+		skipVersingLower(t, "1.18.0")
+
 		err := client.SetReplicationMode(ctx, "test-replication", model.ReplicationModePaused)
 		assert.NoError(t, err)
 
