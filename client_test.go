@@ -256,6 +256,7 @@ func TestReplicationAPI(t *testing.T) {
 		SrcBucket: sourceBucketName,
 		DstBucket: destinationBucketName,
 		DstHost:   "http://localhost:8383",
+		Mode:      model.ReplicationModeEnabled,
 	}
 	// create the source bucket
 	settings := model.NewBucketSettingBuilder().
@@ -278,10 +279,23 @@ func TestReplicationAPI(t *testing.T) {
 		task, err := client.GetReplicationTask(ctx, "test-replication")
 		assert.NoError(t, err)
 		assert.Equal(t, task.Info.Name, "test-replication")
+
+		skipVersingLower(ctx, t, "1.18.0")
+		assert.Equal(t, model.ReplicationModeEnabled, task.Info.Mode)
 	})
 	t.Run("UpdateReplicationTask", func(t *testing.T) {
 		err := client.UpdateReplicationTask(ctx, "test-replication", task)
 		assert.NoError(t, err)
+	})
+	t.Run("SetReplicationMode", func(t *testing.T) {
+		skipVersingLower(ctx, t, "1.18.0")
+
+		err := client.SetReplicationMode(ctx, "test-replication", model.ReplicationModePaused)
+		assert.NoError(t, err)
+
+		task, err := client.GetReplicationTask(ctx, "test-replication")
+		assert.NoError(t, err)
+		assert.Equal(t, model.ReplicationModePaused, task.Info.Mode)
 	})
 
 	t.Run("GetReplicationTasks", func(t *testing.T) {
