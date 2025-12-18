@@ -55,6 +55,8 @@ type Client interface {
 	CreateReplicationTask(ctx context.Context, name string, task model.ReplicationSettings) error
 	// Update a Replication Task
 	UpdateReplicationTask(ctx context.Context, name string, task model.ReplicationSettings) error
+	// Set the mode of a Replication Task
+	SetReplicationMode(ctx context.Context, name string, mode model.ReplicationMode) error
 	// Remove a Replication Task
 	RemoveReplicationTask(ctx context.Context, name string) error
 }
@@ -245,6 +247,31 @@ func (c *ReductClient) GetCurrentToken(ctx context.Context) (model.Token, error)
 	return token, nil
 }
 
+func validateReplicationTask(name string, task model.ReplicationSettings, defaultMode bool) (model.ReplicationSettings, error) {
+	if name == "" {
+		return task, fmt.Errorf("name is required")
+	}
+	if task.SrcBucket == "" {
+		return task, fmt.Errorf("src_bucket is required")
+	}
+	if task.DstBucket == "" {
+		return task, fmt.Errorf("dst_bucket is required")
+	}
+	if task.DstHost == "" {
+		return task, fmt.Errorf("dst_host is required")
+	}
+	if task.Mode == "" {
+		if !defaultMode {
+			return task, nil
+		}
+		task.Mode = model.ReplicationModeEnabled
+	} else if !task.Mode.IsValid() {
+		return task, fmt.Errorf("invalid replication mode: %s", task.Mode)
+	}
+
+	return task, nil
+}
+
 // GetReplicationTasks returns a list of replication tasks.
 func (c *ReductClient) GetReplicationTasks(ctx context.Context) ([]model.ReplicationInfo, error) {
 	var tasks map[string][]model.ReplicationInfo
@@ -267,21 +294,12 @@ func (c *ReductClient) GetReplicationTask(ctx context.Context, name string) (mod
 
 // CreateReplicationTask creates a new replication task.
 func (c *ReductClient) CreateReplicationTask(ctx context.Context, name string, task model.ReplicationSettings) error {
-	// validate the task
-	if task.SrcBucket == "" {
-		return fmt.Errorf("src_bucket is required")
-	}
-	if task.DstBucket == "" {
-		return fmt.Errorf("dst_bucket is required")
-	}
-	if task.DstHost == "" {
-		return fmt.Errorf("dst_host is required")
-	}
-	if name == "" {
-		return fmt.Errorf("name is required")
+	task, err := validateReplicationTask(name, task, true)
+	if err != nil {
+		return err
 	}
 	var fullTask model.FullReplicationInfo
-	err := c.HTTPClient.Post(ctx, fmt.Sprintf("/replications/%s", name), task, &fullTask)
+	err = c.HTTPClient.Post(ctx, fmt.Sprintf("/replications/%s", name), task, &fullTask)
 	if err != nil {
 		return err
 	}
@@ -290,24 +308,32 @@ func (c *ReductClient) CreateReplicationTask(ctx context.Context, name string, t
 
 // UpdateReplicationTask updates an existing replication task.
 func (c *ReductClient) UpdateReplicationTask(ctx context.Context, name string, task model.ReplicationSettings) error {
+	task, err := validateReplicationTask(name, task, false)
+	if err != nil {
+		return err
+	}
 	var fullTask model.FullReplicationInfo
-	if name == "" {
-		return fmt.Errorf("name is required")
-	}
-	if task.SrcBucket == "" {
-		return fmt.Errorf("src_bucket is required")
-	}
-	if task.DstBucket == "" {
-		return fmt.Errorf("dst_bucket is required")
-	}
-	if task.DstHost == "" {
-		return fmt.Errorf("dst_host is required")
-	}
-	err := c.HTTPClient.Put(ctx, fmt.Sprintf("/replications/%s", name), task, &fullTask)
+	err = c.HTTPClient.Put(ctx, fmt.Sprintf("/replications/%s", name), task, &fullTask)
 	if err != nil {
 		return err
 	}
 	return nil
+}
+
+// SetReplicationMode updates the mode of an existing replication task.
+func (c *ReductClient) SetReplicationMode(ctx context.Context, name string, mode model.ReplicationMode) error {
+	if name == "" {
+		return fmt.Errorf("name is required")
+	}
+	if mode == "" {
+		return fmt.Errorf("mode is required")
+	}
+	if !mode.IsValid() {
+		return fmt.Errorf("invalid replication mode: %s", mode)
+	}
+	payload := model.ReplicationModePayload{Mode: mode}
+
+	return c.HTTPClient.Patch(ctx, fmt.Sprintf("/replications/%s/mode", name), payload, nil)
 }
 
 // RemoveReplicationTask removes a replication task.

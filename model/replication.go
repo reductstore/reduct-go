@@ -1,5 +1,24 @@
 package model
 
+// ReplicationMode defines the replication operating mode.
+type ReplicationMode string
+
+const (
+	ReplicationModeEnabled  ReplicationMode = "enabled"
+	ReplicationModePaused   ReplicationMode = "paused"
+	ReplicationModeDisabled ReplicationMode = "disabled"
+)
+
+// IsValid returns true when the mode matches a known replication mode.
+func (m ReplicationMode) IsValid() bool {
+	switch m {
+	case ReplicationModeEnabled, ReplicationModePaused, ReplicationModeDisabled:
+		return true
+	default:
+		return false
+	}
+}
+
 // ReplicationSettings represents the settings for replication.
 type ReplicationSettings struct {
 	// Source bucket. Must exist.
@@ -18,18 +37,27 @@ type ReplicationSettings struct {
 	EachN int64 `json:"each_n,omitempty"`
 	// Conditional query
 	When any `json:"when,omitempty"`
+	// Replication mode
+	Mode ReplicationMode `json:"mode,omitempty"`
 }
 
 // ReplicationInfo represents basic information about a replication.
 type ReplicationInfo struct {
 	// Name of the replication
 	Name string `json:"name"`
+	// Replication mode
+	Mode ReplicationMode `json:"mode"`
 	// Whether the remote instance is available and replication is active
 	IsActive bool `json:"is_active"`
 	// Whether the replication is provisioned
 	IsProvisioned bool `json:"is_provisioned"`
 	// Number of records pending replication
 	PendingRecords int64 `json:"pending_records"`
+}
+
+// ReplicationModePayload represents the payload to update replication mode.
+type ReplicationModePayload struct {
+	Mode ReplicationMode `json:"mode"`
 }
 
 // FullReplicationInfo represents complete information about a replication.
