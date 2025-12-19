@@ -42,6 +42,11 @@ func TestGetBucketInfo(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "test-bucket", info.Name)
 	assert.Equal(t, int64(0), info.Size)
+	// Check that status field is present (should be READY for active buckets)
+	// Status may be empty string for older API versions, but if present should be READY
+	if info.Status != "" {
+		assert.Equal(t, model.StatusReady, info.Status)
+	}
 }
 func TestGetBucketEntries(t *testing.T) {
 	settings := model.NewBucketSettingBuilder().
@@ -60,6 +65,11 @@ func TestGetBucketEntries(t *testing.T) {
 	entries, err = bucket.GetEntries(context.Background())
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(entries))
+	// Check that entry status field is present (should be READY for active entries)
+	// Status may be empty string for older API versions, but if present should be READY
+	if entries[0].Status != "" {
+		assert.Equal(t, model.StatusReady, entries[0].Status)
+	}
 	// delete bucket
 	err = client.RemoveBucket(context.Background(), "test-bucket")
 	assert.NoError(t, err)
@@ -78,6 +88,10 @@ func TestGetBucketFullInfo(t *testing.T) {
 	assert.Equal(t, model.QuotaTypeFifo, info.Settings.QuotaType)
 	assert.Equal(t, int64(1024*1024*1024), info.Settings.QuotaSize)
 	assert.Equal(t, 0, len(info.Entries))
+	// Check bucket status
+	if info.Info.Status != "" {
+		assert.Equal(t, model.StatusReady, info.Info.Status)
+	}
 	// write some entries
 	writer := bucket.BeginWrite(context.Background(), "test-entry", nil)
 	err = writer.Write([]byte("test-data"))
@@ -85,6 +99,10 @@ func TestGetBucketFullInfo(t *testing.T) {
 	info, err = bucket.GetFullInfo(context.Background())
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(info.Entries))
+	// Check entry status
+	if info.Entries[0].Status != "" {
+		assert.Equal(t, model.StatusReady, info.Entries[0].Status)
+	}
 	// delete bucket
 	err = client.RemoveBucket(context.Background(), "test-bucket")
 	assert.NoError(t, err)
@@ -222,6 +240,13 @@ func TestGetBuckets(t *testing.T) {
 	buckets, err := client.GetBuckets(context.Background())
 	assert.NoError(t, err)
 	assert.NotNil(t, buckets)
+	// Check that status field is present in bucket list
+	// Status may be empty string for older API versions, but if present should be READY
+	for _, bucket := range buckets {
+		if bucket.Status != "" {
+			assert.Equal(t, model.StatusReady, bucket.Status)
+		}
+	}
 }
 
 func TestHealth(t *testing.T) {

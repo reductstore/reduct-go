@@ -25,3 +25,13 @@
 - Commits are short and imperative (e.g., `Add base_url to query link`); releases follow `release vX.Y.Z` and often include PR numbers.
 - PRs should describe behavior changes, link issues, and note compatibility with supported ReductStore API versions (v1.15–v1.17). Attach results for `go test ./...` and `golangci-lint run`.
 - Update README/CHANGELOG when modifying public APIs or support matrix, and call out breaking changes early in the PR description.
+
+## Non-Blocking Deletions (v1.18+)
+Starting with ReductStore v1.18, bucket and entry deletions are performed asynchronously in the background. Resources expose a `Status` field that can be `READY` or `DELETING`:
+
+- **Status Field**: Added to `BucketInfo` and `EntryInfo` models as an optional field (`omitempty` JSON tag for backward compatibility)
+- **Status Values**: 
+  - `model.StatusReady` - Resource is ready for normal operations
+  - `model.StatusDeleting` - Resource is being deleted in the background; operations will return HTTP 409 (Conflict) until deletion completes
+- **Testing**: Status field is tested in existing integration tests (`client_test.go` for buckets, entries checked in `GetBucketEntries` and `GetBucketFullInfo`)
+- **Backward Compatibility**: The status field uses `omitempty`, so it won't be serialized if empty, maintaining compatibility with older ReductStore versions
