@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Support replication modes (`enabled`, `paused`, `disabled`), [PR-44](https://github.com/reductstore/reduct-go/pull/44)
-- Support for non-blocking deletions: Add `Status` field to `BucketInfo` and `EntryInfo` models to track deletion state (READY or DELETING)
+- Support for non-blocking deletions: Add `Status` field to `BucketInfo` and `EntryInfo` models to track deletion state (READY or DELETING), [PR-46](https://github.com/reductstore/reduct-go/pull/46)
 
 ## 1.17.1 - 2025-11-17
 

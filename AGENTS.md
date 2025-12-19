@@ -25,3 +25,39 @@
 - Commits are short and imperative (e.g., `Add base_url to query link`); releases follow `release vX.Y.Z` and often include PR numbers.
 - PRs should describe behavior changes, link issues, and note compatibility with supported ReductStore API versions (v1.15–v1.17). Attach results for `go test ./...` and `golangci-lint run`.
 - Update README/CHANGELOG when modifying public APIs or support matrix, and call out breaking changes early in the PR description.
+
+## Non-Blocking Deletions (v1.18+)
+
+Starting with ReductStore v1.18, bucket and entry deletions are performed asynchronously in the background. The operation returns immediately while the actual cleanup happens in the background.
+
+During deletion, the bucket or entry status will be set to `DELETING`. While in this state:
+- Read, write, or delete operations will return HTTP 409 (Conflict)
+- You can check the status using the `Status` field in `BucketInfo` or `EntryInfo`
+
+Example of checking bucket status:
+
+```go
+ctx := context.Background()
+
+// Delete a bucket
+err := client.RemoveBucket(ctx, "my-bucket")
+if err != nil {
+    panic(err)
+}
+
+// Check bucket status in list
+buckets, err := client.GetBuckets(ctx)
+if err != nil {
+    panic(err)
+}
+
+for _, bucket := range buckets {
+    if bucket.Status == model.StatusDeleting {
+        fmt.Printf("Bucket %s is being deleted\n", bucket.Name)
+    }
+}
+```
+
+The status field can have the following values:
+- `model.StatusReady` - The resource is ready for operations
+- `model.StatusDeleting` - The resource is being deleted in the background

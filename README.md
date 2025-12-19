@@ -105,42 +105,6 @@ func main() {
 
 For more examples, see the [Guides](https://www.reduct.store/docs/guides) section in the ReductStore documentation.
 
-## Non-Blocking Deletions
-
-Starting with ReductStore v1.18, bucket and entry deletions are performed asynchronously in the background. This means that when you delete a bucket or entry, the operation returns immediately while the actual cleanup happens in the background.
-
-During deletion, the bucket or entry status will be set to `DELETING`. While in this state:
-- Read, write, or delete operations will return HTTP 409 (Conflict)
-- You can check the status using the `Status` field in `BucketInfo` or `EntryInfo`
-
-Example of checking bucket status:
-
-```go
-ctx := context.Background()
-
-// Delete a bucket
-err := client.RemoveBucket(ctx, "my-bucket")
-if err != nil {
-    panic(err)
-}
-
-// Check bucket status in list
-buckets, err := client.GetBuckets(ctx)
-if err != nil {
-    panic(err)
-}
-
-for _, bucket := range buckets {
-    if bucket.Status == model.StatusDeleting {
-        fmt.Printf("Bucket %s is being deleted\n", bucket.Name)
-    }
-}
-```
-
-The status field can have the following values:
-- `model.StatusReady` - The resource is ready for operations
-- `model.StatusDeleting` - The resource is being deleted in the background
-
 ## Supported ReductStore Versions and Backward Compatibility
 
 The library is backward compatible with the previous versions. However, some methods have been deprecated and will be removed in future releases. Please refer to the [Changelog](CHANGELOG.md) for more details.
