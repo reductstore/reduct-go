@@ -8,4 +8,5 @@ type EntryInfo struct {
 	Size         int64  `json:"size"`          // Size of stored data in the bucket in bytes
 	OldestRecord int64  `json:"oldest_record"` // Unix timestamp of the oldest record in microseconds
 	LatestRecord int64  `json:"latest_record"` // Unix timestamp of the latest record in microseconds
+	Status       Status `json:"status,omitempty"` // Status of the entry (READY or DELETING)
 }

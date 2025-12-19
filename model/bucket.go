@@ -87,6 +87,17 @@ const (
 	QuotaTypeHard QuotaType = "HARD"
 )
 
+// Status represents the current status of a bucket or entry.
+type Status string
+
+const (
+	// StatusReady indicates the bucket or entry is ready for operations.
+	StatusReady Status = "READY"
+	// StatusDeleting indicates the bucket or entry is being deleted in the background.
+	// Operations on resources with this status will return HTTP 409.
+	StatusDeleting Status = "DELETING"
+)
+
 // BucketInfo Represents information about a bucket.
 type BucketInfo struct {
 	// bucket name
@@ -101,6 +112,8 @@ type BucketInfo struct {
 	LatestRecord uint64 `json:"latest_record"`
 	// true if the bucket is provisioned
 	IsProvisioned bool `json:"is_provisioned"`
+	// status of the bucket (READY or DELETING)
+	Status Status `json:"status,omitempty"`
 }
 
 // FullBucketDetail Information about the bucket in JSON format.
