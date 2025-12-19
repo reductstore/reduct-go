@@ -72,6 +72,16 @@ func TestEntryRecordWriterAndReader(t *testing.T) {
 	assert.NoError(t, err)
 	// check if the data is the same
 	assert.Equal(t, data, readDataMap)
+
+	// Check entry status through GetEntries
+	entries, err := mainTestBucket.GetEntries(context.Background())
+	assert.NoError(t, err)
+	// Status may be empty string for older API versions, but if present should be READY
+	for _, entry := range entries {
+		if entry.Status != "" {
+			assert.Equal(t, model.StatusReady, entry.Status)
+		}
+	}
 }
 
 func TestEntryRecordStreamWriterAndChunkedReader(t *testing.T) {
