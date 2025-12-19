@@ -20,6 +20,7 @@
 - Tests rely on `stretchr/testify`; prefer table-driven cases for new behaviors.
 - Integration tests create and clean buckets dynamically; reuse helpers in `main_test.go` instead of hard-coding names or tokens.
 - Use `-run` filters for focused debugging when full integration runs are slow; document any test that needs special fixtures or environment.
+- **CI Testing**: The CI pipeline tests the code against both `reduct/store:main` (development version) and `reduct/store:latest` (stable version) to ensure backward compatibility. This is critical to avoid breaking changes across ReductStore versions.
 
 ## Commit & Pull Request Guidelines
 - Commits are short and imperative (e.g., `Add base_url to query link`); releases follow `release vX.Y.Z` and often include PR numbers.
