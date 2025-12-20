@@ -49,9 +49,11 @@ func TestGetBucketInfo(t *testing.T) {
 	assert.NoError(t, err)
 	serverVersion, err := model.ParseVersion(serverInfo.Version)
 	if err == nil {
-		requiredVersion := &model.Version{Major: 1, Minor: 18}
-		if !serverVersion.IsOlderThan(requiredVersion, 1) && info.Status != "" {
-			assert.Equal(t, model.StatusReady, info.Status)
+		// Check if server version is >= 1.18
+		if (serverVersion.Major > 1) || (serverVersion.Major == 1 && serverVersion.Minor >= 18) {
+			if info.Status != "" {
+				assert.Equal(t, model.StatusReady, info.Status)
+			}
 		}
 	}
 }
@@ -79,9 +81,11 @@ func TestGetBucketEntries(t *testing.T) {
 	assert.NoError(t, err)
 	serverVersion, err := model.ParseVersion(serverInfo.Version)
 	if err == nil {
-		requiredVersion := &model.Version{Major: 1, Minor: 18}
-		if !serverVersion.IsOlderThan(requiredVersion, 1) && entries[0].Status != "" {
-			assert.Equal(t, model.StatusReady, entries[0].Status)
+		// Check if server version is >= 1.18
+		if (serverVersion.Major > 1) || (serverVersion.Major == 1 && serverVersion.Minor >= 18) {
+			if entries[0].Status != "" {
+				assert.Equal(t, model.StatusReady, entries[0].Status)
+			}
 		}
 	}
 	// delete bucket
@@ -108,11 +112,15 @@ func TestGetBucketFullInfo(t *testing.T) {
 	serverInfo, err := client.GetInfo(ctx)
 	assert.NoError(t, err)
 	serverVersion, versionErr := model.ParseVersion(serverInfo.Version)
-	requiredVersion := &model.Version{Major: 1, Minor: 18}
 
 	// Check bucket status - only available in ReductStore v1.18+
-	if versionErr == nil && !serverVersion.IsOlderThan(requiredVersion, 1) && info.Info.Status != "" {
-		assert.Equal(t, model.StatusReady, info.Info.Status)
+	if versionErr == nil {
+		// Check if server version is >= 1.18
+		if (serverVersion.Major > 1) || (serverVersion.Major == 1 && serverVersion.Minor >= 18) {
+			if info.Info.Status != "" {
+				assert.Equal(t, model.StatusReady, info.Info.Status)
+			}
+		}
 	}
 
 	// write some entries
@@ -124,8 +132,13 @@ func TestGetBucketFullInfo(t *testing.T) {
 	assert.Equal(t, 1, len(info.Entries))
 
 	// Check entry status - only available in ReductStore v1.18+
-	if versionErr == nil && !serverVersion.IsOlderThan(requiredVersion, 1) && info.Entries[0].Status != "" {
-		assert.Equal(t, model.StatusReady, info.Entries[0].Status)
+	if versionErr == nil {
+		// Check if server version is >= 1.18
+		if (serverVersion.Major > 1) || (serverVersion.Major == 1 && serverVersion.Minor >= 18) {
+			if info.Entries[0].Status != "" {
+				assert.Equal(t, model.StatusReady, info.Entries[0].Status)
+			}
+		}
 	}
 
 	// delete bucket
@@ -272,8 +285,8 @@ func TestGetBuckets(t *testing.T) {
 	assert.NoError(t, err)
 	serverVersion, err := model.ParseVersion(serverInfo.Version)
 	if err == nil {
-		requiredVersion := &model.Version{Major: 1, Minor: 18}
-		if !serverVersion.IsOlderThan(requiredVersion, 1) {
+		// Check if server version is >= 1.18
+		if (serverVersion.Major > 1) || (serverVersion.Major == 1 && serverVersion.Minor >= 18) {
 			for _, bucket := range buckets {
 				if bucket.Status != "" {
 					assert.Equal(t, model.StatusReady, bucket.Status)

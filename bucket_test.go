@@ -82,8 +82,8 @@ func TestEntryRecordWriterAndReader(t *testing.T) {
 	assert.NoError(t, err)
 	serverVersion, err := model.ParseVersion(serverInfo.Version)
 	if err == nil {
-		requiredVersion := &model.Version{Major: 1, Minor: 18}
-		if !serverVersion.IsOlderThan(requiredVersion, 1) {
+		// Check if server version is >= 1.18
+		if (serverVersion.Major > 1) || (serverVersion.Major == 1 && serverVersion.Minor >= 18) {
 			for _, entry := range entries {
 				if entry.Status != "" {
 					assert.Equal(t, model.StatusReady, entry.Status)
