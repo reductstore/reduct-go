@@ -32,79 +32,88 @@ func TestGetBucket_NotFound(t *testing.T) {
 }
 
 func TestGetBucketInfo(t *testing.T) {
+	ctx := context.Background()
 	settings := model.NewBucketSettingBuilder().
 		WithQuotaSize(1024 * 1024 * 1024).
 		WithQuotaType(model.QuotaTypeFifo).
 		WithMaxBlockRecords(1000).WithMaxBlockSize(1024).Build()
-	bucket, err := client.CreateOrGetBucket(context.Background(), "test-bucket", &settings)
+	bucket, err := client.CreateOrGetBucket(ctx, "test-bucket", &settings)
 	assert.NoError(t, err)
-	info, err := bucket.GetInfo(context.Background())
+	info, err := bucket.GetInfo(ctx)
 	assert.NoError(t, err)
 	assert.Equal(t, "test-bucket", info.Name)
 	assert.Equal(t, int64(0), info.Size)
 	// Check that status field is present (should be READY for active buckets)
-	// Status may be empty string for older API versions, but if present should be READY
-	if info.Status != "" {
+	// Status field is only available in ReductStore v1.18+
+	serverInfo, err := client.GetInfo(ctx)
+	assert.NoError(t, err)
+	if serverInfo.Version >= "1.18.0" && info.Status != "" {
 		assert.Equal(t, model.StatusReady, info.Status)
 	}
 }
 func TestGetBucketEntries(t *testing.T) {
+	ctx := context.Background()
 	settings := model.NewBucketSettingBuilder().
 		WithQuotaSize(1024 * 1024 * 1024).
 		WithQuotaType(model.QuotaTypeFifo).
 		WithMaxBlockRecords(1000).WithMaxBlockSize(1024).Build()
-	bucket, err := client.CreateOrGetBucket(context.Background(), "test-bucket", &settings)
+	bucket, err := client.CreateOrGetBucket(ctx, "test-bucket", &settings)
 	assert.NoError(t, err)
-	entries, err := bucket.GetEntries(context.Background())
+	entries, err := bucket.GetEntries(ctx)
 	assert.NoError(t, err)
 	assert.Equal(t, 0, len(entries))
 	// write some entries
-	writer := bucket.BeginWrite(context.Background(), "test-entry", nil)
+	writer := bucket.BeginWrite(ctx, "test-entry", nil)
 	err = writer.Write([]byte("test-data"))
 	assert.NoError(t, err)
-	entries, err = bucket.GetEntries(context.Background())
+	entries, err = bucket.GetEntries(ctx)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(entries))
 	// Check that entry status field is present (should be READY for active entries)
-	// Status may be empty string for older API versions, but if present should be READY
-	if entries[0].Status != "" {
+	// Status field is only available in ReductStore v1.18+
+	serverInfo, err := client.GetInfo(ctx)
+	assert.NoError(t, err)
+	if serverInfo.Version >= "1.18.0" && entries[0].Status != "" {
 		assert.Equal(t, model.StatusReady, entries[0].Status)
 	}
 	// delete bucket
-	err = client.RemoveBucket(context.Background(), "test-bucket")
+	err = client.RemoveBucket(ctx, "test-bucket")
 	assert.NoError(t, err)
 }
 
 func TestGetBucketFullInfo(t *testing.T) {
+	ctx := context.Background()
 	settings := model.NewBucketSettingBuilder().
 		WithQuotaSize(1024 * 1024 * 1024).
 		WithQuotaType(model.QuotaTypeFifo).
 		WithMaxBlockRecords(1000).WithMaxBlockSize(1024).Build()
-	bucket, err := client.CreateOrGetBucket(context.Background(), "test-bucket", &settings)
+	bucket, err := client.CreateOrGetBucket(ctx, "test-bucket", &settings)
 	assert.NoError(t, err)
-	info, err := bucket.GetFullInfo(context.Background())
+	info, err := bucket.GetFullInfo(ctx)
 	assert.NoError(t, err)
 	assert.Equal(t, "test-bucket", info.Info.Name)
 	assert.Equal(t, model.QuotaTypeFifo, info.Settings.QuotaType)
 	assert.Equal(t, int64(1024*1024*1024), info.Settings.QuotaSize)
 	assert.Equal(t, 0, len(info.Entries))
-	// Check bucket status
-	if info.Info.Status != "" {
+	// Check bucket status - only available in ReductStore v1.18+
+	serverInfo, err := client.GetInfo(ctx)
+	assert.NoError(t, err)
+	if serverInfo.Version >= "1.18.0" && info.Info.Status != "" {
 		assert.Equal(t, model.StatusReady, info.Info.Status)
 	}
 	// write some entries
-	writer := bucket.BeginWrite(context.Background(), "test-entry", nil)
+	writer := bucket.BeginWrite(ctx, "test-entry", nil)
 	err = writer.Write([]byte("test-data"))
 	assert.NoError(t, err)
-	info, err = bucket.GetFullInfo(context.Background())
+	info, err = bucket.GetFullInfo(ctx)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(info.Entries))
-	// Check entry status
-	if info.Entries[0].Status != "" {
+	// Check entry status - only available in ReductStore v1.18+
+	if serverInfo.Version >= "1.18.0" && info.Entries[0].Status != "" {
 		assert.Equal(t, model.StatusReady, info.Entries[0].Status)
 	}
 	// delete bucket
-	err = client.RemoveBucket(context.Background(), "test-bucket")
+	err = client.RemoveBucket(ctx, "test-bucket")
 	assert.NoError(t, err)
 }
 
@@ -237,14 +246,19 @@ func TestGetInfo_VersionCheck(t *testing.T) {
 }
 
 func TestGetBuckets(t *testing.T) {
-	buckets, err := client.GetBuckets(context.Background())
+	ctx := context.Background()
+	buckets, err := client.GetBuckets(ctx)
 	assert.NoError(t, err)
 	assert.NotNil(t, buckets)
 	// Check that status field is present in bucket list
-	// Status may be empty string for older API versions, but if present should be READY
-	for _, bucket := range buckets {
-		if bucket.Status != "" {
-			assert.Equal(t, model.StatusReady, bucket.Status)
+	// Status field is only available in ReductStore v1.18+
+	serverInfo, err := client.GetInfo(ctx)
+	assert.NoError(t, err)
+	if serverInfo.Version >= "1.18.0" {
+		for _, bucket := range buckets {
+			if bucket.Status != "" {
+				assert.Equal(t, model.StatusReady, bucket.Status)
+			}
 		}
 	}
 }
