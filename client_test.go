@@ -103,16 +103,18 @@ func TestGetBucketFullInfo(t *testing.T) {
 	assert.Equal(t, model.QuotaTypeFifo, info.Settings.QuotaType)
 	assert.Equal(t, int64(1024*1024*1024), info.Settings.QuotaSize)
 	assert.Equal(t, 0, len(info.Entries))
-	// Check bucket status - only available in ReductStore v1.18+
+
+	// Get server version once for all status checks
 	serverInfo, err := client.GetInfo(ctx)
 	assert.NoError(t, err)
-	serverVersion, err := model.ParseVersion(serverInfo.Version)
-	if err == nil {
-		requiredVersion := &model.Version{Major: 1, Minor: 18}
-		if !serverVersion.IsOlderThan(requiredVersion, 1) && info.Info.Status != "" {
-			assert.Equal(t, model.StatusReady, info.Info.Status)
-		}
+	serverVersion, versionErr := model.ParseVersion(serverInfo.Version)
+	requiredVersion := &model.Version{Major: 1, Minor: 18}
+
+	// Check bucket status - only available in ReductStore v1.18+
+	if versionErr == nil && !serverVersion.IsOlderThan(requiredVersion, 1) && info.Info.Status != "" {
+		assert.Equal(t, model.StatusReady, info.Info.Status)
 	}
+
 	// write some entries
 	writer := bucket.BeginWrite(ctx, "test-entry", nil)
 	err = writer.Write([]byte("test-data"))
@@ -120,13 +122,12 @@ func TestGetBucketFullInfo(t *testing.T) {
 	info, err = bucket.GetFullInfo(ctx)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(info.Entries))
+
 	// Check entry status - only available in ReductStore v1.18+
-	if err == nil {
-		requiredVersion := &model.Version{Major: 1, Minor: 18}
-		if !serverVersion.IsOlderThan(requiredVersion, 1) && info.Entries[0].Status != "" {
-			assert.Equal(t, model.StatusReady, info.Entries[0].Status)
-		}
+	if versionErr == nil && !serverVersion.IsOlderThan(requiredVersion, 1) && info.Entries[0].Status != "" {
+		assert.Equal(t, model.StatusReady, info.Entries[0].Status)
 	}
+
 	// delete bucket
 	err = client.RemoveBucket(ctx, "test-bucket")
 	assert.NoError(t, err)
