@@ -80,10 +80,14 @@ func TestEntryRecordWriterAndReader(t *testing.T) {
 	// Status field is only available in ReductStore v1.18+
 	serverInfo, err := client.GetInfo(ctx)
 	assert.NoError(t, err)
-	if serverInfo.Version >= "1.18.0" {
-		for _, entry := range entries {
-			if entry.Status != "" {
-				assert.Equal(t, model.StatusReady, entry.Status)
+	serverVersion, err := model.ParseVersion(serverInfo.Version)
+	if err == nil {
+		requiredVersion := &model.Version{Major: 1, Minor: 18}
+		if !serverVersion.IsOlderThan(requiredVersion, 1) {
+			for _, entry := range entries {
+				if entry.Status != "" {
+					assert.Equal(t, model.StatusReady, entry.Status)
+				}
 			}
 		}
 	}
