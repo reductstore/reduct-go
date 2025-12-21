@@ -32,61 +32,159 @@ func TestGetBucket_NotFound(t *testing.T) {
 }
 
 func TestGetBucketInfo(t *testing.T) {
+	ctx := context.Background()
 	settings := model.NewBucketSettingBuilder().
 		WithQuotaSize(1024 * 1024 * 1024).
 		WithQuotaType(model.QuotaTypeFifo).
 		WithMaxBlockRecords(1000).WithMaxBlockSize(1024).Build()
-	bucket, err := client.CreateOrGetBucket(context.Background(), "test-bucket", &settings)
+	bucket, err := client.CreateOrGetBucket(ctx, "test-bucket", &settings)
 	assert.NoError(t, err)
-	info, err := bucket.GetInfo(context.Background())
+	info, err := bucket.GetInfo(ctx)
 	assert.NoError(t, err)
 	assert.Equal(t, "test-bucket", info.Name)
 	assert.Equal(t, int64(0), info.Size)
 }
-func TestGetBucketEntries(t *testing.T) {
+
+func TestGetBucketInfoStatus(t *testing.T) {
+	ctx := context.Background()
+	skipVersingLower(ctx, t, "1.18.0")
+
 	settings := model.NewBucketSettingBuilder().
 		WithQuotaSize(1024 * 1024 * 1024).
 		WithQuotaType(model.QuotaTypeFifo).
 		WithMaxBlockRecords(1000).WithMaxBlockSize(1024).Build()
-	bucket, err := client.CreateOrGetBucket(context.Background(), "test-bucket", &settings)
+	bucket, err := client.CreateOrGetBucket(ctx, "test-bucket-status", &settings)
 	assert.NoError(t, err)
-	entries, err := bucket.GetEntries(context.Background())
+
+	info, err := bucket.GetInfo(ctx)
+	assert.NoError(t, err)
+	assert.Equal(t, "test-bucket-status", info.Name)
+
+	// Status field should be READY for active buckets
+	if info.Status != "" {
+		assert.Equal(t, model.StatusReady, info.Status)
+	}
+
+	// cleanup
+	err = client.RemoveBucket(ctx, "test-bucket-status")
+	assert.NoError(t, err)
+}
+func TestGetBucketEntries(t *testing.T) {
+	ctx := context.Background()
+	settings := model.NewBucketSettingBuilder().
+		WithQuotaSize(1024 * 1024 * 1024).
+		WithQuotaType(model.QuotaTypeFifo).
+		WithMaxBlockRecords(1000).WithMaxBlockSize(1024).Build()
+	bucket, err := client.CreateOrGetBucket(ctx, "test-bucket", &settings)
+	assert.NoError(t, err)
+	entries, err := bucket.GetEntries(ctx)
 	assert.NoError(t, err)
 	assert.Equal(t, 0, len(entries))
 	// write some entries
-	writer := bucket.BeginWrite(context.Background(), "test-entry", nil)
+	writer := bucket.BeginWrite(ctx, "test-entry", nil)
 	err = writer.Write([]byte("test-data"))
 	assert.NoError(t, err)
-	entries, err = bucket.GetEntries(context.Background())
+	entries, err = bucket.GetEntries(ctx)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(entries))
 	// delete bucket
-	err = client.RemoveBucket(context.Background(), "test-bucket")
+	err = client.RemoveBucket(ctx, "test-bucket")
+	assert.NoError(t, err)
+}
+
+func TestGetBucketEntriesStatus(t *testing.T) {
+	ctx := context.Background()
+	skipVersingLower(ctx, t, "1.18.0")
+
+	settings := model.NewBucketSettingBuilder().
+		WithQuotaSize(1024 * 1024 * 1024).
+		WithQuotaType(model.QuotaTypeFifo).
+		WithMaxBlockRecords(1000).WithMaxBlockSize(1024).Build()
+	bucket, err := client.CreateOrGetBucket(ctx, "test-bucket-entries-status", &settings)
+	assert.NoError(t, err)
+
+	// write an entry
+	writer := bucket.BeginWrite(ctx, "test-entry", nil)
+	err = writer.Write([]byte("test-data"))
+	assert.NoError(t, err)
+
+	entries, err := bucket.GetEntries(ctx)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, len(entries))
+
+	// Status field should be READY for active entries
+	if entries[0].Status != "" {
+		assert.Equal(t, model.StatusReady, entries[0].Status)
+	}
+
+	// cleanup
+	err = client.RemoveBucket(ctx, "test-bucket-entries-status")
 	assert.NoError(t, err)
 }
 
 func TestGetBucketFullInfo(t *testing.T) {
+	ctx := context.Background()
 	settings := model.NewBucketSettingBuilder().
 		WithQuotaSize(1024 * 1024 * 1024).
 		WithQuotaType(model.QuotaTypeFifo).
 		WithMaxBlockRecords(1000).WithMaxBlockSize(1024).Build()
-	bucket, err := client.CreateOrGetBucket(context.Background(), "test-bucket", &settings)
+	bucket, err := client.CreateOrGetBucket(ctx, "test-bucket", &settings)
 	assert.NoError(t, err)
-	info, err := bucket.GetFullInfo(context.Background())
+	info, err := bucket.GetFullInfo(ctx)
 	assert.NoError(t, err)
 	assert.Equal(t, "test-bucket", info.Info.Name)
 	assert.Equal(t, model.QuotaTypeFifo, info.Settings.QuotaType)
 	assert.Equal(t, int64(1024*1024*1024), info.Settings.QuotaSize)
 	assert.Equal(t, 0, len(info.Entries))
+
 	// write some entries
-	writer := bucket.BeginWrite(context.Background(), "test-entry", nil)
+	writer := bucket.BeginWrite(ctx, "test-entry", nil)
 	err = writer.Write([]byte("test-data"))
 	assert.NoError(t, err)
-	info, err = bucket.GetFullInfo(context.Background())
+	info, err = bucket.GetFullInfo(ctx)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(info.Entries))
+
 	// delete bucket
-	err = client.RemoveBucket(context.Background(), "test-bucket")
+	err = client.RemoveBucket(ctx, "test-bucket")
+	assert.NoError(t, err)
+}
+
+func TestGetBucketFullInfoStatus(t *testing.T) {
+	ctx := context.Background()
+	skipVersingLower(ctx, t, "1.18.0")
+
+	settings := model.NewBucketSettingBuilder().
+		WithQuotaSize(1024 * 1024 * 1024).
+		WithQuotaType(model.QuotaTypeFifo).
+		WithMaxBlockRecords(1000).WithMaxBlockSize(1024).Build()
+	bucket, err := client.CreateOrGetBucket(ctx, "test-bucket-fullinfo-status", &settings)
+	assert.NoError(t, err)
+
+	info, err := bucket.GetFullInfo(ctx)
+	assert.NoError(t, err)
+
+	// Bucket status should be READY for active buckets
+	if info.Info.Status != "" {
+		assert.Equal(t, model.StatusReady, info.Info.Status)
+	}
+
+	// write an entry
+	writer := bucket.BeginWrite(ctx, "test-entry", nil)
+	err = writer.Write([]byte("test-data"))
+	assert.NoError(t, err)
+
+	info, err = bucket.GetFullInfo(ctx)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, len(info.Entries))
+
+	// Entry status should be READY for active entries
+	if info.Entries[0].Status != "" {
+		assert.Equal(t, model.StatusReady, info.Entries[0].Status)
+	}
+
+	// cleanup
+	err = client.RemoveBucket(ctx, "test-bucket-fullinfo-status")
 	assert.NoError(t, err)
 }
 
@@ -104,7 +202,15 @@ func TestBucketRemoveEntry(t *testing.T) {
 	assert.NoError(t, err)
 	entries, err := bucket.GetEntries(context.Background())
 	assert.NoError(t, err)
-	assert.Equal(t, 0, len(entries))
+	// With non-blocking deletions in v1.18+, the entry may still be visible with DELETING status
+	// Count only entries that are not being deleted
+	readyEntries := 0
+	for _, entry := range entries {
+		if entry.Status != model.StatusDeleting {
+			readyEntries++
+		}
+	}
+	assert.Equal(t, 0, readyEntries)
 	// delete bucket
 	err = client.RemoveBucket(context.Background(), "test-bucket")
 	assert.NoError(t, err)
@@ -219,9 +325,26 @@ func TestGetInfo_VersionCheck(t *testing.T) {
 }
 
 func TestGetBuckets(t *testing.T) {
-	buckets, err := client.GetBuckets(context.Background())
+	ctx := context.Background()
+	buckets, err := client.GetBuckets(ctx)
 	assert.NoError(t, err)
 	assert.NotNil(t, buckets)
+}
+
+func TestGetBucketsStatus(t *testing.T) {
+	ctx := context.Background()
+	skipVersingLower(ctx, t, "1.18.0")
+
+	buckets, err := client.GetBuckets(ctx)
+	assert.NoError(t, err)
+	assert.NotNil(t, buckets)
+
+	// Status field should be present in bucket list for v1.18+
+	for _, bucket := range buckets {
+		if bucket.Status != "" {
+			assert.Equal(t, model.StatusReady, bucket.Status)
+		}
+	}
 }
 
 func TestHealth(t *testing.T) {

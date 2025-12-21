@@ -20,8 +20,15 @@
 - Tests rely on `stretchr/testify`; prefer table-driven cases for new behaviors.
 - Integration tests create and clean buckets dynamically; reuse helpers in `main_test.go` instead of hard-coding names or tokens.
 - Use `-run` filters for focused debugging when full integration runs are slow; document any test that needs special fixtures or environment.
+- **CI Testing**: The CI pipeline tests the code against both `reduct/store:main` (development version) and `reduct/store:latest` (stable version) to ensure backward compatibility. This is critical to avoid breaking changes across ReductStore versions.
 
 ## Commit & Pull Request Guidelines
 - Commits are short and imperative (e.g., `Add base_url to query link`); releases follow `release vX.Y.Z` and often include PR numbers.
 - PRs should describe behavior changes, link issues, and note compatibility with supported ReductStore API versions (v1.15–v1.17). Attach results for `go test ./...` and `golangci-lint run`.
-- Update README/CHANGELOG when modifying public APIs or support matrix, and call out breaking changes early in the PR description.
+- Update CHANGELOG accordingly. Keep a Changelog format with a link to the PR, and call out breaking changes early in the PR description.
+- **Before pushing changes**: Always run all checks locally to ensure they pass:
+  - `go build ./...` — verify code compiles
+  - `go vet ./...` — static analysis
+  - `gofmt -l .` — check formatting (should return no files)
+  - `golangci-lint run ./...` — linter checks (should return 0 issues)
+  - `go test ./...` — run tests against both `reduct/store:main` (development version) and `reduct/store:latest` (stable version) to ensure backward compatibility

@@ -42,12 +42,13 @@ func TestBucketExists(t *testing.T) {
 }
 
 func TestEntryRecordWriterAndReader(t *testing.T) {
-	exists, err := mainTestBucket.CheckExists(context.Background())
+	ctx := context.Background()
+	exists, err := mainTestBucket.CheckExists(ctx)
 	assert.NoError(t, err)
 	assert.True(t, exists)
 
 	// create a new entry record writer
-	writer := mainTestBucket.BeginWrite(context.Background(), "entry-1", nil)
+	writer := mainTestBucket.BeginWrite(ctx, "entry-1", nil)
 	data := map[string]any{
 		"key1": "value1",
 		"key2": float64(2),
@@ -61,7 +62,7 @@ func TestEntryRecordWriterAndReader(t *testing.T) {
 	err = writer.Write(dataByte)
 	assert.NoError(t, err)
 	// we should be able to read the written data
-	reader, err := mainTestBucket.BeginRead(context.Background(), "entry-1", nil)
+	reader, err := mainTestBucket.BeginRead(ctx, "entry-1", nil)
 	assert.NoError(t, err)
 	// read the data
 	resp, err := reader.Read()
@@ -72,6 +73,23 @@ func TestEntryRecordWriterAndReader(t *testing.T) {
 	assert.NoError(t, err)
 	// check if the data is the same
 	assert.Equal(t, data, readDataMap)
+}
+
+func TestEntryStatus(t *testing.T) {
+	ctx := context.Background()
+	skipVersingLower(ctx, t, "1.18.0")
+
+	// Check entry status through GetEntries
+	entries, err := mainTestBucket.GetEntries(ctx)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, entries)
+
+	// Status field should be READY for active entries
+	for _, entry := range entries {
+		if entry.Status != "" {
+			assert.Equal(t, model.StatusReady, entry.Status)
+		}
+	}
 }
 
 func TestEntryRecordStreamWriterAndChunkedReader(t *testing.T) {
