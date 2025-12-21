@@ -26,3 +26,9 @@
 - Commits are short and imperative (e.g., `Add base_url to query link`); releases follow `release vX.Y.Z` and often include PR numbers.
 - PRs should describe behavior changes, link issues, and note compatibility with supported ReductStore API versions (v1.15–v1.17). Attach results for `go test ./...` and `golangci-lint run`.
 - Update CHANGELOG accordingly. Keep a Changelog format with a link to the PR, and call out breaking changes early in the PR description.
+- **Before pushing changes**: Always run all checks locally to ensure they pass:
+  - `go build ./...` — verify code compiles
+  - `go vet ./...` — static analysis
+  - `gofmt -l .` — check formatting (should return no files)
+  - `golangci-lint run ./...` — linter checks (should return 0 issues)
+  - `go test ./...` — run tests (requires ReductStore running locally)

@@ -55,10 +55,6 @@ func TestGetBucketInfoStatus(t *testing.T) {
 		WithMaxBlockRecords(1000).WithMaxBlockSize(1024).Build()
 	bucket, err := client.CreateOrGetBucket(ctx, "test-bucket-status", &settings)
 	assert.NoError(t, err)
-	defer func() {
-		err := client.RemoveBucket(ctx, "test-bucket-status")
-		assert.NoError(t, err)
-	}()
 
 	info, err := bucket.GetInfo(ctx)
 	assert.NoError(t, err)
@@ -68,6 +64,10 @@ func TestGetBucketInfoStatus(t *testing.T) {
 	if info.Status != "" {
 		assert.Equal(t, model.StatusReady, info.Status)
 	}
+
+	// cleanup
+	err = client.RemoveBucket(ctx, "test-bucket-status")
+	assert.NoError(t, err)
 }
 func TestGetBucketEntries(t *testing.T) {
 	ctx := context.Background()
@@ -102,10 +102,6 @@ func TestGetBucketEntriesStatus(t *testing.T) {
 		WithMaxBlockRecords(1000).WithMaxBlockSize(1024).Build()
 	bucket, err := client.CreateOrGetBucket(ctx, "test-bucket-entries-status", &settings)
 	assert.NoError(t, err)
-	defer func() {
-		err := client.RemoveBucket(ctx, "test-bucket-entries-status")
-		assert.NoError(t, err)
-	}()
 
 	// write an entry
 	writer := bucket.BeginWrite(ctx, "test-entry", nil)
@@ -120,6 +116,10 @@ func TestGetBucketEntriesStatus(t *testing.T) {
 	if entries[0].Status != "" {
 		assert.Equal(t, model.StatusReady, entries[0].Status)
 	}
+
+	// cleanup
+	err = client.RemoveBucket(ctx, "test-bucket-entries-status")
+	assert.NoError(t, err)
 }
 
 func TestGetBucketFullInfo(t *testing.T) {
@@ -160,10 +160,6 @@ func TestGetBucketFullInfoStatus(t *testing.T) {
 		WithMaxBlockRecords(1000).WithMaxBlockSize(1024).Build()
 	bucket, err := client.CreateOrGetBucket(ctx, "test-bucket-fullinfo-status", &settings)
 	assert.NoError(t, err)
-	defer func() {
-		err := client.RemoveBucket(ctx, "test-bucket-fullinfo-status")
-		assert.NoError(t, err)
-	}()
 
 	info, err := bucket.GetFullInfo(ctx)
 	assert.NoError(t, err)
@@ -186,6 +182,10 @@ func TestGetBucketFullInfoStatus(t *testing.T) {
 	if info.Entries[0].Status != "" {
 		assert.Equal(t, model.StatusReady, info.Entries[0].Status)
 	}
+
+	// cleanup
+	err = client.RemoveBucket(ctx, "test-bucket-fullinfo-status")
+	assert.NoError(t, err)
 }
 
 func TestBucketRemoveEntry(t *testing.T) {
