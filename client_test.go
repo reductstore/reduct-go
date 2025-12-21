@@ -202,7 +202,15 @@ func TestBucketRemoveEntry(t *testing.T) {
 	assert.NoError(t, err)
 	entries, err := bucket.GetEntries(context.Background())
 	assert.NoError(t, err)
-	assert.Equal(t, 0, len(entries))
+	// With non-blocking deletions in v1.18+, the entry may still be visible with DELETING status
+	// Count only entries that are not being deleted
+	readyEntries := 0
+	for _, entry := range entries {
+		if entry.Status != model.StatusDeleting {
+			readyEntries++
+		}
+	}
+	assert.Equal(t, 0, readyEntries)
 	// delete bucket
 	err = client.RemoveBucket(context.Background(), "test-bucket")
 	assert.NoError(t, err)
