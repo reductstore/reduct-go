@@ -73,22 +73,21 @@ func TestEntryRecordWriterAndReader(t *testing.T) {
 	assert.NoError(t, err)
 	// check if the data is the same
 	assert.Equal(t, data, readDataMap)
+}
+
+func TestEntryStatus(t *testing.T) {
+	ctx := context.Background()
+	skipVersingLower(ctx, t, "1.18.0")
 
 	// Check entry status through GetEntries
 	entries, err := mainTestBucket.GetEntries(ctx)
 	assert.NoError(t, err)
-	// Status field is only available in ReductStore v1.18+
-	serverInfo, err := client.GetInfo(ctx)
-	assert.NoError(t, err)
-	serverVersion, err := model.ParseVersion(serverInfo.Version)
-	if err == nil {
-		// Check if server version is >= 1.18
-		if (serverVersion.Major > 1) || (serverVersion.Major == 1 && serverVersion.Minor >= 18) {
-			for _, entry := range entries {
-				if entry.Status != "" {
-					assert.Equal(t, model.StatusReady, entry.Status)
-				}
-			}
+	assert.NotEmpty(t, entries)
+
+	// Status field should be READY for active entries
+	for _, entry := range entries {
+		if entry.Status != "" {
+			assert.Equal(t, model.StatusReady, entry.Status)
 		}
 	}
 }
