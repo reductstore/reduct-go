@@ -31,4 +31,4 @@
   - `go vet ./...` — static analysis
   - `gofmt -l .` — check formatting (should return no files)
   - `golangci-lint run ./...` — linter checks (should return 0 issues)
-  - `go test ./...` — run tests (requires ReductStore running locally)
+  - `go test ./...` — run tests against both `reduct/store:main` (development version) and `reduct/store:latest` (stable version) to ensure backward compatibility
