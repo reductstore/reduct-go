@@ -55,7 +55,10 @@ func TestGetBucketInfoStatus(t *testing.T) {
 		WithMaxBlockRecords(1000).WithMaxBlockSize(1024).Build()
 	bucket, err := client.CreateOrGetBucket(ctx, "test-bucket-status", &settings)
 	assert.NoError(t, err)
-	defer client.RemoveBucket(ctx, "test-bucket-status")
+	defer func() {
+		err := client.RemoveBucket(ctx, "test-bucket-status")
+		assert.NoError(t, err)
+	}()
 
 	info, err := bucket.GetInfo(ctx)
 	assert.NoError(t, err)
@@ -99,7 +102,10 @@ func TestGetBucketEntriesStatus(t *testing.T) {
 		WithMaxBlockRecords(1000).WithMaxBlockSize(1024).Build()
 	bucket, err := client.CreateOrGetBucket(ctx, "test-bucket-entries-status", &settings)
 	assert.NoError(t, err)
-	defer client.RemoveBucket(ctx, "test-bucket-entries-status")
+	defer func() {
+		err := client.RemoveBucket(ctx, "test-bucket-entries-status")
+		assert.NoError(t, err)
+	}()
 
 	// write an entry
 	writer := bucket.BeginWrite(ctx, "test-entry", nil)
@@ -154,7 +160,10 @@ func TestGetBucketFullInfoStatus(t *testing.T) {
 		WithMaxBlockRecords(1000).WithMaxBlockSize(1024).Build()
 	bucket, err := client.CreateOrGetBucket(ctx, "test-bucket-fullinfo-status", &settings)
 	assert.NoError(t, err)
-	defer client.RemoveBucket(ctx, "test-bucket-fullinfo-status")
+	defer func() {
+		err := client.RemoveBucket(ctx, "test-bucket-fullinfo-status")
+		assert.NoError(t, err)
+	}()
 
 	info, err := bucket.GetFullInfo(ctx)
 	assert.NoError(t, err)
