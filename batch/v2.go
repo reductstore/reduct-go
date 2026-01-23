@@ -143,8 +143,9 @@ func readBatchedRecordsV2(ctx context.Context, client httpclient.HTTPClient, buc
 	}
 
 	recordHeaders := parseRecordHeaders(resp.Header)
-	// Empty batch is valid - return empty channel
+	// Empty batch is valid - close response body and return empty channel
 	if len(recordHeaders) == 0 {
+		resp.Body.Close()
 		close(records)
 		return records, nil
 	}
