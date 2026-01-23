@@ -494,7 +494,7 @@ func parseHeaderList(header string) ([]string, error) {
 	trimmed := strings.TrimSpace(header)
 	if trimmed == "" {
 		// Empty batch has no entries
-		return []string{}, nil
+		return nil, nil
 	}
 	parts := strings.Split(trimmed, ",")
 	out := make([]string, 0, len(parts))
