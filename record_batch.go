@@ -96,6 +96,16 @@ func (b *RecordBatch) Add(entry string, ts int64, data []byte, contentType strin
 	}
 }
 
+// AddOnlyLabels adds an empty record with only labels for update/remove operations.
+func (b *RecordBatch) AddOnlyLabels(entry string, ts int64, labels LabelMap) {
+	b.Add(entry, ts, nil, "", labels)
+}
+
+// AddOnlyTimestamp adds an empty record with only a timestamp for remove operations.
+func (b *RecordBatch) AddOnlyTimestamp(entry string, ts int64) {
+	b.Add(entry, ts, nil, "", LabelMap{})
+}
+
 // Send sends the batch to the server using Batch Protocol v2.
 func (b *RecordBatch) Send(ctx context.Context) (RecordBatchErrorMap, error) {
 	b.mu.Lock()
@@ -136,6 +146,27 @@ func (b *RecordBatch) Send(ctx context.Context) (RecordBatchErrorMap, error) {
 
 		path := fmt.Sprintf("/io/%s/update", b.bucketName)
 		req, err := b.httpClient.NewRequestWithContext(ctx, http.MethodPatch, path, nil)
+		if err != nil {
+			return nil, err
+		}
+		req.Header = headers
+		req.ContentLength = 0
+
+		resp, err := b.httpClient.Do(req)
+		if err != nil {
+			return nil, err
+		}
+		defer resp.Body.Close()
+
+		return parseRecordBatchErrors(resp.Header, entries, startTS)
+	case BatchRemove:
+		headers, entries, startTS, err := buildRecordBatchRemoveRequest(items)
+		if err != nil {
+			return nil, err
+		}
+
+		path := fmt.Sprintf("/io/%s/remove", b.bucketName)
+		req, err := b.httpClient.NewRequestWithContext(ctx, http.MethodDelete, path, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -372,6 +403,63 @@ func buildRecordBatchUpdateRequest(records []*recordBatchRecord) (http.Header, [
 	if len(labelNames) > 0 {
 		headers.Set(recordBatchLabelsHeader, encodeHeaderList(labelNames))
 	}
+
+	return headers, entries, startTS, nil
+}
+
+func buildRecordBatchRemoveRequest(records []*recordBatchRecord) (http.Header, []string, int64, error) {
+	headers := http.Header{}
+	if len(records) == 0 {
+		headers.Set(recordBatchEntriesHeader, "")
+		headers.Set(recordBatchStartTSHeader, "0")
+		headers.Set("Content-Length", "0")
+		return headers, []string{}, 0, nil
+	}
+
+	items := append([]*recordBatchRecord(nil), records...)
+	slices.SortFunc(items, func(a, b *recordBatchRecord) int {
+		if a.entry != b.entry {
+			if a.entry < b.entry {
+				return -1
+			}
+			return 1
+		}
+		switch {
+		case a.timestamp < b.timestamp:
+			return -1
+		case a.timestamp > b.timestamp:
+			return 1
+		default:
+			return 0
+		}
+	})
+
+	entries := make([]string, 0)
+	entryIndexLookup := map[string]int{}
+
+	startTS := items[0].timestamp
+	for _, record := range items {
+		if record.timestamp < startTS {
+			startTS = record.timestamp
+		}
+	}
+
+	for _, record := range items {
+		entryIndex, ok := entryIndexLookup[record.entry]
+		if !ok {
+			entryIndex = len(entries)
+			entries = append(entries, record.entry)
+			entryIndexLookup[record.entry] = entryIndex
+		}
+
+		delta := record.timestamp - startTS
+		headerName := fmt.Sprintf("%s%d-%d", recordBatchHeaderPrefix, entryIndex, delta)
+		headers.Set(headerName, "")
+	}
+
+	headers.Set(recordBatchEntriesHeader, encodeHeaderList(entries))
+	headers.Set(recordBatchStartTSHeader, strconv.FormatInt(startTS, 10))
+	headers.Set("Content-Length", "0")
 
 	return headers, entries, startTS, nil
 }

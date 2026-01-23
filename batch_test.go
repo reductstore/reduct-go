@@ -246,8 +246,8 @@ func TestRecordBatchUpdate(t *testing.T) {
 
 	updateBatch := mainTestBucket.BeginUpdateRecordBatch(ctx)
 	assert.NotNil(t, updateBatch)
-	updateBatch.Add(entry1, ts1, nil, "", map[string]any{"keep": "one-updated", "remove": ""})
-	updateBatch.Add(entry2, ts2, nil, "", map[string]any{"new": "added"})
+	updateBatch.AddOnlyLabels(entry1, ts1, map[string]any{"keep": "one-updated", "remove": ""})
+	updateBatch.AddOnlyLabels(entry2, ts2, map[string]any{"new": "added"})
 	errs, err = updateBatch.Send(ctx)
 	assert.NoError(t, err)
 	assert.Empty(t, errs)
@@ -296,14 +296,83 @@ func TestRecordBatchUpdateErrors(t *testing.T) {
 
 	updateBatch := mainTestBucket.BeginUpdateRecordBatch(ctx)
 	assert.NotNil(t, updateBatch)
-	updateBatch.Add(entry, ts, nil, "", map[string]any{"ok": "true"})
-	updateBatch.Add("missing-entry", ts, nil, "", map[string]any{"bad": "true"})
+	updateBatch.AddOnlyLabels(entry, ts, map[string]any{"ok": "true"})
+	updateBatch.AddOnlyLabels("missing-entry", ts, map[string]any{"bad": "true"})
 	errs, err = updateBatch.Send(ctx)
 	assert.NoError(t, err)
 
 	entryErrors := errs["missing-entry"]
 	if assert.NotNil(t, entryErrors) {
 		apiErr, ok := entryErrors[ts]
+		assert.True(t, ok)
+		assert.Equal(t, 404, apiErr.Status)
+	}
+}
+
+func TestRecordBatchRemove(t *testing.T) {
+	ctx := context.Background()
+	skipVersingLower(ctx, t, "1.18.0")
+
+	entry1 := "record-batch-remove-entry-1"
+	entry2 := "record-batch-remove-entry-2"
+
+	writeBatch := mainTestBucket.BeginWriteRecordBatch(ctx)
+	assert.NotNil(t, writeBatch)
+
+	ts1 := time.Now().UTC().UnixMicro()
+	ts2 := ts1 + 1000
+
+	writeBatch.Add(entry1, ts1, []byte("alpha"), "text/plain", nil)
+	writeBatch.Add(entry2, ts2, []byte("beta"), "text/plain", nil)
+	errs, err := writeBatch.Send(ctx)
+	assert.NoError(t, err)
+	assert.Empty(t, errs)
+
+	removeBatch := mainTestBucket.BeginRemoveRecordBatch(ctx)
+	assert.NotNil(t, removeBatch)
+	removeBatch.AddOnlyTimestamp(entry1, ts1)
+	removeBatch.AddOnlyTimestamp(entry2, ts2)
+	errs, err = removeBatch.Send(ctx)
+	assert.NoError(t, err)
+	assert.Empty(t, errs)
+
+	_, err = mainTestBucket.BeginRead(ctx, entry1, &ts1)
+	assert.Error(t, err)
+	_, err = mainTestBucket.BeginRead(ctx, entry2, &ts2)
+	assert.Error(t, err)
+}
+
+func TestRecordBatchRemoveErrors(t *testing.T) {
+	ctx := context.Background()
+	skipVersingLower(ctx, t, "1.18.0")
+
+	entry := "record-batch-remove-error-entry"
+	ts := time.Now().UTC().UnixMicro()
+
+	writeBatch := mainTestBucket.BeginWriteRecordBatch(ctx)
+	assert.NotNil(t, writeBatch)
+	writeBatch.Add(entry, ts, []byte("alpha"), "text/plain", nil)
+	errs, err := writeBatch.Send(ctx)
+	assert.NoError(t, err)
+	assert.Empty(t, errs)
+
+	removeBatch := mainTestBucket.BeginRemoveRecordBatch(ctx)
+	assert.NotNil(t, removeBatch)
+	removeBatch.AddOnlyTimestamp(entry, ts+1)
+	removeBatch.AddOnlyTimestamp("missing-entry", ts)
+	errs, err = removeBatch.Send(ctx)
+	assert.NoError(t, err)
+
+	missingEntryErrors := errs["missing-entry"]
+	if assert.NotNil(t, missingEntryErrors) {
+		apiErr, ok := missingEntryErrors[ts]
+		assert.True(t, ok)
+		assert.Equal(t, 404, apiErr.Status)
+	}
+
+	entryErrors := errs[entry]
+	if assert.NotNil(t, entryErrors) {
+		apiErr, ok := entryErrors[ts+1]
 		assert.True(t, ok)
 		assert.Equal(t, 404, apiErr.Status)
 	}
