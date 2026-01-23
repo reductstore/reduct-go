@@ -167,7 +167,7 @@ func TestRecordBatchWrite(t *testing.T) {
 	batch.Add("record-batch-entry-1", ts1, []byte("alpha"), "text/plain", map[string]any{"label": "a"})
 	batch.Add("record-batch-entry-2", ts2, []byte("beta"), "", nil)
 
-	errs, err := batch.Write(ctx)
+	errs, err := batch.Send(ctx)
 	assert.NoError(t, err)
 	assert.Empty(t, errs)
 
@@ -207,13 +207,13 @@ func TestRecordBatchWriteErrors(t *testing.T) {
 	ts := time.Now().UTC().UnixMicro()
 
 	batch.Add(entry, ts, []byte("first"), "", nil)
-	errs, err := batch.Write(ctx)
+	errs, err := batch.Send(ctx)
 	assert.NoError(t, err)
 	assert.Empty(t, errs)
 
 	batch.Clear()
 	batch.Add(entry, ts, []byte("dup"), "", nil)
-	errs, err = batch.Write(ctx)
+	errs, err = batch.Send(ctx)
 	assert.NoError(t, err)
 
 	entryErrors := errs[entry]
@@ -222,6 +222,90 @@ func TestRecordBatchWriteErrors(t *testing.T) {
 			Status:  409,
 			Message: fmt.Sprintf("A record with timestamp %d already exists", ts),
 		}, entryErrors[ts])
+	}
+}
+
+func TestRecordBatchUpdate(t *testing.T) {
+	ctx := context.Background()
+	skipVersingLower(ctx, t, "1.18.0")
+
+	entry1 := "record-batch-update-entry-1"
+	entry2 := "record-batch-update-entry-2"
+
+	writeBatch := mainTestBucket.BeginWriteRecordBatch(ctx)
+	assert.NotNil(t, writeBatch)
+
+	ts1 := time.Now().UTC().UnixMicro()
+	ts2 := ts1 + 1000
+
+	writeBatch.Add(entry1, ts1, []byte("alpha"), "text/plain", map[string]any{"keep": "one", "remove": "gone"})
+	writeBatch.Add(entry2, ts2, []byte("beta"), "text/plain", map[string]any{"keep": "two"})
+	errs, err := writeBatch.Send(ctx)
+	assert.NoError(t, err)
+	assert.Empty(t, errs)
+
+	updateBatch := mainTestBucket.BeginUpdateRecordBatch(ctx)
+	assert.NotNil(t, updateBatch)
+	updateBatch.Add(entry1, ts1, nil, "", map[string]any{"keep": "one-updated", "remove": ""})
+	updateBatch.Add(entry2, ts2, nil, "", map[string]any{"new": "added"})
+	errs, err = updateBatch.Send(ctx)
+	assert.NoError(t, err)
+	assert.Empty(t, errs)
+
+	recordsEntry1, err := mainTestBucket.Query(ctx, entry1, nil)
+	assert.NoError(t, err)
+	record1 := <-recordsEntry1.Records()
+	assert.NotNil(t, record1)
+	assert.Equal(t, ts1, record1.Time())
+	assert.Equal(t, int64(5), record1.Size())
+	assert.Equal(t, "text/plain", record1.ContentType())
+	content1, err := record1.Read()
+	assert.NoError(t, err)
+	assert.Equal(t, "alpha", string(content1))
+	assert.Equal(t, "one-updated", record1.Labels()["keep"])
+	_, ok := record1.Labels()["remove"]
+	assert.False(t, ok)
+
+	recordsEntry2, err := mainTestBucket.Query(ctx, entry2, nil)
+	assert.NoError(t, err)
+	record2 := <-recordsEntry2.Records()
+	assert.NotNil(t, record2)
+	assert.Equal(t, ts2, record2.Time())
+	assert.Equal(t, int64(4), record2.Size())
+	assert.Equal(t, "text/plain", record2.ContentType())
+	content2, err := record2.Read()
+	assert.NoError(t, err)
+	assert.Equal(t, "beta", string(content2))
+	assert.Equal(t, "two", record2.Labels()["keep"])
+	assert.Equal(t, "added", record2.Labels()["new"])
+}
+
+func TestRecordBatchUpdateErrors(t *testing.T) {
+	ctx := context.Background()
+	skipVersingLower(ctx, t, "1.18.0")
+
+	entry := "record-batch-update-error-entry"
+	ts := time.Now().UTC().UnixMicro()
+
+	writeBatch := mainTestBucket.BeginWriteRecordBatch(ctx)
+	assert.NotNil(t, writeBatch)
+	writeBatch.Add(entry, ts, []byte("alpha"), "text/plain", nil)
+	errs, err := writeBatch.Send(ctx)
+	assert.NoError(t, err)
+	assert.Empty(t, errs)
+
+	updateBatch := mainTestBucket.BeginUpdateRecordBatch(ctx)
+	assert.NotNil(t, updateBatch)
+	updateBatch.Add(entry, ts, nil, "", map[string]any{"ok": "true"})
+	updateBatch.Add("missing-entry", ts, nil, "", map[string]any{"bad": "true"})
+	errs, err = updateBatch.Send(ctx)
+	assert.NoError(t, err)
+
+	entryErrors := errs["missing-entry"]
+	if assert.NotNil(t, entryErrors) {
+		apiErr, ok := entryErrors[ts]
+		assert.True(t, ok)
+		assert.Equal(t, 404, apiErr.Status)
 	}
 }
 

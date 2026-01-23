@@ -49,6 +49,7 @@ type recordBatchMeta struct {
 type RecordBatch struct {
 	bucketName string
 	httpClient httpclient.HTTPClient
+	batchType  BatchType
 	records    map[recordBatchKey]*recordBatchRecord
 	totalSize  int64
 	lastAccess time.Time
@@ -56,10 +57,11 @@ type RecordBatch struct {
 }
 
 // newRecordBatch creates a new record batch.
-func newRecordBatch(bucket string, client httpclient.HTTPClient) *RecordBatch {
+func newRecordBatch(bucket string, client httpclient.HTTPClient, batchType BatchType) *RecordBatch {
 	return &RecordBatch{
 		bucketName: bucket,
 		httpClient: client,
+		batchType:  batchType,
 		records:    make(map[recordBatchKey]*recordBatchRecord),
 		totalSize:  0,
 		lastAccess: time.Time{},
@@ -94,8 +96,8 @@ func (b *RecordBatch) Add(entry string, ts int64, data []byte, contentType strin
 	}
 }
 
-// Write writes the batch to the server using Batch Protocol v2.
-func (b *RecordBatch) Write(ctx context.Context) (RecordBatchErrorMap, error) {
+// Send sends the batch to the server using Batch Protocol v2.
+func (b *RecordBatch) Send(ctx context.Context) (RecordBatchErrorMap, error) {
 	b.mu.Lock()
 	items := make([]*recordBatchRecord, 0, len(b.records))
 	for _, record := range b.records {
@@ -103,26 +105,53 @@ func (b *RecordBatch) Write(ctx context.Context) (RecordBatchErrorMap, error) {
 	}
 	b.mu.Unlock()
 
-	headers, body, entries, startTS, err := buildRecordBatchWriteRequest(items)
-	if err != nil {
-		return nil, err
-	}
+	switch b.batchType {
+	case BatchWrite:
+		headers, body, entries, startTS, contentLength, err := buildRecordBatchWriteRequest(items)
+		if err != nil {
+			return nil, err
+		}
 
-	path := fmt.Sprintf("/io/%s/write", b.bucketName)
-	req, err := b.httpClient.NewRequestWithContext(ctx, http.MethodPost, path, body)
-	if err != nil {
-		return nil, err
-	}
-	req.Header = headers
-	req.Header.Set("Content-Type", "application/octet-stream")
+		path := fmt.Sprintf("/io/%s/write", b.bucketName)
+		req, err := b.httpClient.NewRequestWithContext(ctx, http.MethodPost, path, body)
+		if err != nil {
+			return nil, err
+		}
+		req.Header = headers
+		req.Header.Set("Content-Type", "application/octet-stream")
+		req.ContentLength = contentLength
 
-	resp, err := b.httpClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
+		resp, err := b.httpClient.Do(req)
+		if err != nil {
+			return nil, err
+		}
+		defer resp.Body.Close()
 
-	return parseRecordBatchErrors(resp.Header, entries, startTS)
+		return parseRecordBatchErrors(resp.Header, entries, startTS)
+	case BatchUpdate:
+		headers, entries, startTS, err := buildRecordBatchUpdateRequest(items)
+		if err != nil {
+			return nil, err
+		}
+
+		path := fmt.Sprintf("/io/%s/update", b.bucketName)
+		req, err := b.httpClient.NewRequestWithContext(ctx, http.MethodPatch, path, nil)
+		if err != nil {
+			return nil, err
+		}
+		req.Header = headers
+		req.ContentLength = 0
+
+		resp, err := b.httpClient.Do(req)
+		if err != nil {
+			return nil, err
+		}
+		defer resp.Body.Close()
+
+		return parseRecordBatchErrors(resp.Header, entries, startTS)
+	default:
+		return nil, fmt.Errorf("invalid batch type")
+	}
 }
 
 // Size returns the total size of the batch.
@@ -161,14 +190,14 @@ type indexedRecord struct {
 	record     *recordBatchRecord
 }
 
-func buildRecordBatchWriteRequest(records []*recordBatchRecord) (http.Header, io.Reader, []string, int64, error) {
+func buildRecordBatchWriteRequest(records []*recordBatchRecord) (http.Header, io.Reader, []string, int64, int64, error) {
 	headers := http.Header{}
 	if len(records) == 0 {
 		headers.Set(recordBatchEntriesHeader, "")
 		headers.Set(recordBatchStartTSHeader, "0")
 		headers.Set("Content-Type", "application/octet-stream")
 		headers.Set("Content-Length", "0")
-		return headers, bytes.NewReader(nil), []string{}, 0, nil
+		return headers, bytes.NewReader(nil), []string{}, 0, 0, nil
 	}
 
 	items := append([]*recordBatchRecord(nil), records...)
@@ -274,7 +303,77 @@ func buildRecordBatchWriteRequest(records []*recordBatchRecord) (http.Header, io
 	headers.Set("Content-Length", strconv.FormatInt(contentLength, 10))
 
 	body := io.MultiReader(chunks...)
-	return headers, body, entries, startTS, nil
+	return headers, body, entries, startTS, contentLength, nil
+}
+
+func buildRecordBatchUpdateRequest(records []*recordBatchRecord) (http.Header, []string, int64, error) {
+	headers := http.Header{}
+	if len(records) == 0 {
+		headers.Set(recordBatchEntriesHeader, "")
+		headers.Set(recordBatchStartTSHeader, "0")
+		headers.Set("Content-Length", "0")
+		return headers, []string{}, 0, nil
+	}
+
+	items := append([]*recordBatchRecord(nil), records...)
+	slices.SortFunc(items, func(a, b *recordBatchRecord) int {
+		if a.entry != b.entry {
+			if a.entry < b.entry {
+				return -1
+			}
+			return 1
+		}
+		switch {
+		case a.timestamp < b.timestamp:
+			return -1
+		case a.timestamp > b.timestamp:
+			return 1
+		default:
+			return 0
+		}
+	})
+
+	entries := make([]string, 0)
+	entryIndexLookup := map[string]int{}
+
+	startTS := items[0].timestamp
+	for _, record := range items {
+		if record.timestamp < startTS {
+			startTS = record.timestamp
+		}
+	}
+
+	labelIndex := map[string]int{}
+	labelNames := make([]string, 0)
+
+	for _, record := range items {
+		entryIndex, ok := entryIndexLookup[record.entry]
+		if !ok {
+			entryIndex = len(entries)
+			entries = append(entries, record.entry)
+			entryIndexLookup[record.entry] = entryIndex
+		}
+
+		delta := record.timestamp - startTS
+		labelDelta := buildUpdateLabelDelta(record.labels, labelIndex, &labelNames)
+
+		headerName := fmt.Sprintf("%s%d-%d", recordBatchHeaderPrefix, entryIndex, delta)
+		if labelDelta == "" {
+			headers.Set(headerName, "0")
+		} else {
+			headers.Set(headerName, "0,,"+labelDelta)
+		}
+	}
+
+	headers.Set(recordBatchEntriesHeader, encodeHeaderList(entries))
+	headers.Set(recordBatchStartTSHeader, strconv.FormatInt(startTS, 10))
+	headers.Set("Content-Length", "0")
+
+	if len(labelNames) > 0 {
+		headers.Set(recordBatchLabelsHeader, encodeHeaderList(labelNames))
+	}
+
+	return headers, entries, startTS, nil
 }
 
 func parseRecordBatchErrors(headers http.Header, entries []string, startTS int64) (RecordBatchErrorMap, error) {
@@ -416,6 +515,47 @@ func buildLabelDelta(labels map[string]string, previous *recordBatchMeta, labelI
 			parts = append(parts, fmt.Sprintf("%d=%s", op.idx, *op.value))
 		}
 	}
+	return strings.Join(parts, ",")
+}
+
+func buildUpdateLabelDelta(labels LabelMap, labelIndex map[string]int, labelNames *[]string) string {
+	if len(labels) == 0 {
+		return ""
+	}
+
+	keys := make([]string, 0, len(labels))
+	for key := range labels {
+		keys = append(keys, key)
+	}
+	slices.Sort(keys)
+
+	ensureLabel := func(name string) int {
+		if idx, ok := labelIndex[name]; ok {
+			return idx
+		}
+		idx := len(*labelNames)
+		labelIndex[name] = idx
+		*labelNames = append(*labelNames, name)
+		return idx
+	}
+
+	parts := make([]string, 0, len(keys))
+	for _, key := range keys {
+		idx := ensureLabel(key)
+		val := labels[key]
+		if val == nil {
+			parts = append(parts, fmt.Sprintf("%d=", idx))
+			continue
+		}
+
+		valStr := fmt.Sprint(val)
+		if valStr == "" {
+			parts = append(parts, fmt.Sprintf("%d=", idx))
+			continue
+		}
+		parts = append(parts, fmt.Sprintf("%d=%s", idx, formatLabelValue(valStr)))
+	}
+
 	return strings.Join(parts, ",")
 }
 
