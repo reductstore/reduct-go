@@ -515,3 +515,30 @@ func TestRemoveQueryMany(t *testing.T) {
 	checkRemaining(entries[0], "keep-1")
 	checkRemaining(entries[1], "keep-2")
 }
+
+func TestQueryManyEmptyBatch(t *testing.T) {
+	ctx := context.Background()
+	skipVersingLower(ctx, t, "1.18")
+
+	// Create unique entry names that don't exist
+	base := fmt.Sprintf("empty-batch-%d", time.Now().UnixNano())
+	entryOne := base + "-1"
+	entryTwo := base + "-2"
+
+	// Query entries that have no data - should return empty results without crashing
+	queryResult, err := mainTestBucket.QueryMany(ctx, []string{entryOne, entryTwo}, &QueryOptions{
+		Start: time.Now().UTC().UnixMicro() - 10000,
+		Stop:  time.Now().UTC().UnixMicro(),
+	})
+	assert.NoError(t, err)
+
+	// Should not receive any records
+	count := 0
+	for record := range queryResult.Records() {
+		count++
+		if record.IsLast() {
+			break
+		}
+	}
+	assert.Equal(t, 0, count, "Empty batch should return zero records")
+}
