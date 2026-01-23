@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"testing"
@@ -195,6 +196,30 @@ func TestQueryLinkWithOptions(t *testing.T) {
 	assert.Contains(t, link, "/custom-name.txt?")
 }
 
+func TestQueryLinkMany(t *testing.T) {
+	ctx := context.Background()
+	skipVersingLower(ctx, t, "1.18.0")
+
+	entryOne := fmt.Sprintf("entry-link-many-%d-1", time.Now().UnixNano())
+	entryTwo := fmt.Sprintf("entry-link-many-%d-2", time.Now().UnixNano())
+
+	writer := mainTestBucket.BeginWrite(ctx, entryOne, nil)
+	err := writer.Write([]byte("test data for query link many 1"))
+	assert.NoError(t, err)
+
+	writer = mainTestBucket.BeginWrite(ctx, entryTwo, nil)
+	err = writer.Write([]byte("test data for query link many 2"))
+	assert.NoError(t, err)
+
+	builder := NewQueryLinkOptionsBuilder()
+	link, err := mainTestBucket.CreateQueryLinkMany(ctx, []string{entryOne, entryTwo}, builder.Build())
+
+	assert.NoError(t, err)
+
+	status := downloadLink(t, link)
+	assert.Equal(t, status, 200)
+}
+
 func TestQueryLinkExpired(t *testing.T) {
 	ctx := context.Background()
 	skipVersingLower(ctx, t, "1.17.0")
@@ -220,7 +245,10 @@ func downloadLink(t *testing.T, link string) int {
 }
 
 func TestRemoveBucket(t *testing.T) {
-	// check if the bucket exists
-	err := mainTestBucket.Remove(context.Background())
+	bucketName := getRandomBucketName()
+	_, err := client.CreateBucket(context.Background(), bucketName, nil)
+	assert.NoError(t, err)
+
+	err = client.RemoveBucket(context.Background(), bucketName)
 	assert.NoError(t, err)
 }
