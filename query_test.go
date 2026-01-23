@@ -415,3 +415,102 @@ func TestRemoveQuery(t *testing.T) {
 		assert.Equal(t, 1, count)
 	})
 }
+
+func TestRemoveQueryWildcard(t *testing.T) {
+	ctx := context.Background()
+	base := fmt.Sprintf("test-remove-wild-%d", time.Now().UnixNano())
+	entryOne := base + "-one"
+	entryTwo := base + "-two"
+	wildcard := base + "-*"
+	now := time.Now().UTC().UnixMicro()
+
+	writeEntry := func(entry, keepLabel, keepData string) {
+		batch := mainTestBucket.BeginWriteBatch(ctx, entry)
+		batch.Add(now, []byte("remove-0"), "text/plain", map[string]any{"type": "remove"})
+		batch.Add(now+1, []byte("remove-1"), "text/plain", map[string]any{"type": "remove"})
+		batch.Add(now+2, []byte(keepData), "text/plain", map[string]any{"type": keepLabel})
+		errMap, err := batch.Write(ctx)
+		assert.NoError(t, err)
+		assert.Empty(t, errMap, "All records should be written successfully")
+	}
+
+	writeEntry(entryOne, "keep-one", "keep-1")
+	writeEntry(entryTwo, "keep-two", "keep-2")
+
+	removed, err := mainTestBucket.RemoveQuery(ctx, wildcard, &QueryOptions{
+		Start: now,
+		Stop:  now + 2,
+	})
+	assert.NoError(t, err)
+	assert.Equal(t, int64(4), removed)
+
+	checkRemaining := func(entry, expectedLabel, expectedData string) {
+		queryResult, err := mainTestBucket.Query(ctx, entry, nil)
+		assert.NoError(t, err)
+
+		count := 0
+		for record := range queryResult.Records() {
+			count++
+			data, err := record.Read()
+			assert.NoError(t, err)
+			assert.Equal(t, now+2, record.Time())
+			assert.Equal(t, expectedData, string(data))
+			assert.Equal(t, expectedLabel, record.Labels()["type"])
+			if record.IsLast() {
+				break
+			}
+		}
+		assert.Equal(t, 1, count)
+	}
+
+	checkRemaining(entryOne, "keep-one", "keep-1")
+	checkRemaining(entryTwo, "keep-two", "keep-2")
+}
+
+func TestRemoveQueryMany(t *testing.T) {
+	ctx := context.Background()
+	skipVersingLower(ctx, t, "1.18.0")
+	base := fmt.Sprintf("test-remove-many-%d", time.Now().UnixNano())
+	entries := []string{base + "-one", base + "-two"}
+	now := time.Now().UTC().UnixMicro()
+
+	writeEntry := func(entry, keepData, removeData string) {
+		batch := mainTestBucket.BeginWriteBatch(ctx, entry)
+		batch.Add(now, []byte(keepData), "text/plain", map[string]any{"type": "keep"})
+		batch.Add(now+1, []byte(removeData), "text/plain", map[string]any{"type": "remove"})
+		errMap, err := batch.Write(ctx)
+		assert.NoError(t, err)
+		assert.Empty(t, errMap, "All records should be written successfully")
+	}
+
+	writeEntry(entries[0], "keep-1", "remove-1")
+	writeEntry(entries[1], "keep-2", "remove-2")
+
+	removed, err := mainTestBucket.RemoveQueryMany(ctx, entries, &QueryOptions{
+		When: map[string]any{"&type": map[string]any{"$eq": "remove"}},
+	})
+	assert.NoError(t, err)
+	assert.Equal(t, int64(2), removed)
+
+	checkRemaining := func(entry, expectedData string) {
+		queryResult, err := mainTestBucket.Query(ctx, entry, nil)
+		assert.NoError(t, err)
+
+		count := 0
+		for record := range queryResult.Records() {
+			count++
+			data, err := record.Read()
+			assert.NoError(t, err)
+			assert.Equal(t, now, record.Time())
+			assert.Equal(t, expectedData, string(data))
+			assert.Equal(t, "keep", record.Labels()["type"])
+			if record.IsLast() {
+				break
+			}
+		}
+		assert.Equal(t, 1, count)
+	}
+
+	checkRemaining(entries[0], "keep-1")
+	checkRemaining(entries[1], "keep-2")
+}

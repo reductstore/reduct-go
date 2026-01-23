@@ -476,10 +476,22 @@ func (b *Bucket) QueryMany(ctx context.Context, entries []string, options *Query
 // Note: remove is exclusive of the end point. [start, end)
 // Returns the number of records removed.
 func (b *Bucket) RemoveQuery(ctx context.Context, entry string, options *QueryOptions) (int64, error) {
+	if entry == "" {
+		return 0, fmt.Errorf("entry name is required for queries")
+	}
 	if options == nil {
 		options = &QueryOptions{}
 	}
 	options.QueryType = QueryTypeRemove
+
+	if strings.Contains(entry, "*") {
+		resp, err := b.executeIOQuery(ctx, []string{entry}, options)
+		if err != nil {
+			return 0, err
+		}
+
+		return resp.RemovedRecords, nil
+	}
 
 	resp, err := b.executeQuery(ctx, entry, options)
 	if err != nil {
@@ -488,6 +500,32 @@ func (b *Bucket) RemoveQuery(ctx context.Context, entry string, options *QueryOp
 
 	return resp.RemovedRecords, nil
 
+}
+
+// RemoveQueryMany removes records by query for multiple entries.
+//
+// Parameters:
+//   - ctx: Context for cancellation and timeout control
+//   - entries: Names of the entries
+//   - options: Optional query options. Only When and Ext fields are used, other options are ignored
+//
+// Note: remove is exclusive of the end point. [start, end)
+// Returns the number of records removed.
+func (b *Bucket) RemoveQueryMany(ctx context.Context, entries []string, options *QueryOptions) (int64, error) {
+	if len(entries) == 0 {
+		return 0, fmt.Errorf("entries are required for RemoveQueryMany")
+	}
+	if options == nil {
+		options = &QueryOptions{}
+	}
+	options.QueryType = QueryTypeRemove
+
+	resp, err := b.executeIOQuery(ctx, entries, options)
+	if err != nil {
+		return 0, err
+	}
+
+	return resp.RemovedRecords, nil
 }
 
 // executeQuery runs a query on an entry, it returns the query ID or an error.
