@@ -254,6 +254,11 @@ func (b *Bucket) BeginRemoveBatch(_ context.Context, entry string) *Batch {
 	return newBatch(b.Name, entry, b.HTTPClient, BatchRemove)
 }
 
+// BeginWriteRecordBatch creates a new batch for writing records across multiple entries (Batch Protocol v2).
+func (b *Bucket) BeginWriteRecordBatch(_ context.Context) *RecordBatch {
+	return newRecordBatch(b.Name, b.HTTPClient)
+}
+
 // QueryType represents the type of query to run.
 type QueryType string
 
