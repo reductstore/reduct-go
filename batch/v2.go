@@ -412,7 +412,7 @@ func parseLabelDeltaOps(rawLabels string, labelNames []string) ([]labelDeltaOp, 
 		return ops, nil
 	}
 
-	for len(rest) > 0 {
+	for rest != "" {
 		eqIndex := strings.Index(rest, "=")
 		if eqIndex == -1 {
 			return nil, fmt.Errorf("invalid batched header")
@@ -425,8 +425,8 @@ func parseLabelDeltaOps(rawLabels string, labelNames []string) ([]labelDeltaOp, 
 		}
 
 		valuePart := rest[eqIndex+1:]
-		value := ""
-		nextRest := ""
+		var value string
+		var nextRest string
 
 		if strings.HasPrefix(valuePart, "\"") {
 			valuePart = valuePart[1:]
