@@ -418,6 +418,7 @@ func TestRemoveQuery(t *testing.T) {
 
 func TestRemoveQueryWildcard(t *testing.T) {
 	ctx := context.Background()
+	skipVersingLower(ctx, t, "1.18.0")
 	base := fmt.Sprintf("test-remove-wild-%d", time.Now().UnixNano())
 	entryOne := base + "-one"
 	entryTwo := base + "-two"

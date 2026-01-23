@@ -625,6 +625,11 @@ type QueryLinkOptions struct {
 	fileName     string
 }
 
+type queryLinkQueryOptions struct {
+	QueryOptions
+	Entries []string `json:"entries,omitempty"`
+}
+
 type QueryLinkOptionsBuilder struct {
 	options QueryLinkOptions
 }
@@ -681,17 +686,67 @@ func (q *QueryLinkOptionsBuilder) Build() QueryLinkOptions {
 //   - entry: Name of the entry to query
 //   - options: Options for the query link, including query parameters, record index, expiration time, and file name
 func (b *Bucket) CreateQueryLink(ctx context.Context, entry string, options QueryLinkOptions) (string, error) {
+	if entry == "" {
+		return "", fmt.Errorf("entry name is required for queries")
+	}
+
+	var entries []string
+	if strings.Contains(entry, "*") {
+		entries = []string{entry}
+	}
+
+	return b.createQueryLink(ctx, entry, entries, options)
+}
+
+// CreateQueryLinkMany creates a temporary link to access records from a query across multiple entries.
+//
+// Parameters:
+//   - ctx: Context for cancellation and timeout control
+//   - entries: Names of the entries to query
+//   - options: Options for the query link, including query parameters, record index, expiration time, and file name
+func (b *Bucket) CreateQueryLinkMany(ctx context.Context, entries []string, options QueryLinkOptions) (string, error) {
+	if len(entries) == 0 {
+		return "", fmt.Errorf("entries are required for CreateQueryLinkMany")
+	}
+
+	return b.createQueryLink(ctx, entries[0], entries, options)
+}
+
+func (b *Bucket) createQueryLink(ctx context.Context, entry string, entries []string, options QueryLinkOptions) (string, error) {
 	options.Bucket = b.Name
 	options.Entry = entry
+	if options.QueryOptions.QueryType == "" {
+		options.QueryOptions.QueryType = QueryTypeQuery
+	}
 	if options.fileName == "" {
-		options.fileName = fmt.Sprintf("%s_%d", entry, options.RecordIndex)
+		fileEntry := entry
+		if fileEntry == "" {
+			fileEntry = b.Name
+		}
+		options.fileName = fmt.Sprintf("%s_%d", fileEntry, options.RecordIndex)
+	}
+
+	payload := struct {
+		Bucket      string                `json:"bucket"`
+		Entry       string                `json:"entry"`
+		Query       queryLinkQueryOptions `json:"query"`
+		RecordIndex int                   `json:"index"`
+		ExpireAt    int64                 `json:"expire_at"`
+		BaseURL     string                `json:"base_url,omitempty"`
+	}{
+		Bucket:      options.Bucket,
+		Entry:       options.Entry,
+		Query:       queryLinkQueryOptions{QueryOptions: options.QueryOptions, Entries: entries},
+		RecordIndex: options.RecordIndex,
+		ExpireAt:    options.ExpireAt,
+		BaseURL:     options.BaseURL,
 	}
 
 	response := struct {
 		Link string `json:"link"`
 	}{}
 
-	err := b.HTTPClient.Post(ctx, fmt.Sprintf("/links/%s", options.fileName), options, &response)
+	err := b.HTTPClient.Post(ctx, fmt.Sprintf("/links/%s", options.fileName), payload, &response)
 	if err != nil {
 		return "", err
 	}
