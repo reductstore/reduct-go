@@ -109,9 +109,11 @@ type ReadableRecord struct {
 	stream      io.Reader
 	labels      LabelMap
 	contentType string
+	entry       string
 }
 
-func NewReadableRecord(time int64,
+func NewReadableRecord(entry string,
+	time int64,
 	size int64,
 	last bool,
 	stream io.Reader,
@@ -128,6 +130,7 @@ func NewReadableRecord(time int64,
 		stream:      stream,
 		labels:      labels,
 		contentType: contentType,
+		entry:       entry,
 	}
 }
 
@@ -190,6 +193,11 @@ func (r *ReadableRecord) IsLastInBatch() bool {
 	return r.lastInBatch
 }
 
+// SetLastInBatch sets whether the record is the last one in a batch.
+func (r *ReadableRecord) SetLastInBatch(last bool) {
+	r.lastInBatch = last
+}
+
 // Size returns the size of the record.
 func (r *ReadableRecord) Size() int64 {
 	return r.size
@@ -203,6 +211,11 @@ func (r *ReadableRecord) Labels() LabelMap {
 // ContentType returns the content type of the record.
 func (r *ReadableRecord) ContentType() string {
 	return r.contentType
+}
+
+// Entry returns the entry name of the record.
+func (r *ReadableRecord) Entry() string {
+	return r.entry
 }
 
 // Time returns the timestamp of the record.

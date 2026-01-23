@@ -220,7 +220,10 @@ func downloadLink(t *testing.T, link string) int {
 }
 
 func TestRemoveBucket(t *testing.T) {
-	// check if the bucket exists
-	err := mainTestBucket.Remove(context.Background())
+	bucketName := getRandomBucketName()
+	_, err := client.CreateBucket(context.Background(), bucketName, nil)
+	assert.NoError(t, err)
+
+	err = client.RemoveBucket(context.Background(), bucketName)
 	assert.NoError(t, err)
 }

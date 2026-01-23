@@ -1,17 +1,12 @@
 package reductgo
 
 import (
-	"bytes"
 	"context"
-	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
-	"slices"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/reductstore/reduct-go/httpclient"
@@ -220,7 +215,7 @@ func (b *Bucket) readRecord(ctx context.Context, entry string, ts *string, head 
 
 	timeVal, _ := strconv.ParseInt(timeStr, 10, 64) //nolint:errcheck //not needed
 	sizeVal, _ := strconv.ParseInt(sizeStr, 10, 64) //nolint:errcheck //not needed
-	record := NewReadableRecord(timeVal, sizeVal, last, resp.Body, labels, resp.Header.Get("Content-Type"))
+	record := NewReadableRecord(entry, timeVal, sizeVal, last, resp.Body, labels, resp.Header.Get("Content-Type"))
 	return record, nil
 
 }
@@ -356,6 +351,18 @@ type QueryResponse struct {
 	RemovedRecords int64 `json:"removed_records,omitempty"`
 }
 
+type ioQueryRequest struct {
+	QueryType    QueryType `json:"query_type"`
+	Entries      []string  `json:"entries,omitempty"`
+	Start        int64     `json:"start,omitempty"`
+	Stop         int64     `json:"stop,omitempty"`
+	When         any       `json:"when,omitempty"`
+	Ext          any       `json:"ext,omitempty"`
+	Strict       bool      `json:"strict,omitempty"`
+	Continuous   bool      `json:"continuous,omitempty"`
+	OnlyMetadata bool      `json:"only_metadata,omitempty"`
+}
+
 type QueryResult struct {
 	records <-chan *ReadableRecord
 }
@@ -373,14 +380,12 @@ func (q *QueryResult) Records() <-chan *ReadableRecord {
 //
 // Parameters:
 //   - ctx: Context for cancellation and timeout control
-//   - entry: Name of the entry to query
-//   - start: Optional start point of the time period in microseconds
-//   - end: Optional end point of the time period in microseconds
+//   - entry: Name of the entry to query. Wildcards are allowed (e.g. "acc-*").
 //   - options: Optional query options for filtering and controlling the query behavior
 //
 // Example:
 //
-//	records, err := bucket.Query(ctx, "entry-1", start, end, nil)
+//	records, err := bucket.Query(ctx, "entry-1", nil)
 //	if err != nil {
 //	    return err
 //	}
@@ -407,12 +412,56 @@ func (b *Bucket) Query(ctx context.Context, entry string, options *QueryOptions)
 	if options.QueryType == "" {
 		options.QueryType = QueryTypeQuery
 	}
-	resp, err := b.executeQuery(ctx, entry, options)
+	if entry == "" {
+		return &QueryResult{}, fmt.Errorf("entry name is required for queries")
+	}
+	if !strings.Contains(entry, "*") {
+		resp, err := b.executeQuery(ctx, entry, options)
+		if err != nil {
+			return &QueryResult{}, err
+		}
+
+		return b.fetchAndParseBatchedRecords(ctx, entry, resp.ID, options.Continuous, options.PollInterval, options.Head)
+	}
+
+	resp, err := b.executeIOQuery(ctx, []string{entry}, options)
 	if err != nil {
 		return &QueryResult{}, err
 	}
 
-	return b.fetchAndParseBatchedRecords(ctx, entry, resp.ID, options.Continuous, options.PollInterval, options.Head)
+	return b.fetchAndParseBatchedRecordsV2(ctx, resp.ID, options.Continuous, options.PollInterval, options.Head)
+}
+
+// QueryMany queries records for multiple entries and returns them through a channel.
+//
+// Parameters:
+//   - ctx: Context for cancellation and timeout control
+//   - entries: Names of the entries to query
+//   - options: Optional query options for filtering and controlling the query behavior
+func (b *Bucket) QueryMany(ctx context.Context, entries []string, options *QueryOptions) (*QueryResult, error) {
+	if len(entries) == 0 {
+		return &QueryResult{}, fmt.Errorf("entries are required for QueryMany")
+	}
+	if options == nil {
+		options = &QueryOptions{
+			QueryType:    QueryTypeQuery,
+			Head:         false,
+			PollInterval: time.Second,
+		}
+	}
+	if options.PollInterval == 0 {
+		options.PollInterval = time.Second
+	}
+	if options.QueryType == "" {
+		options.QueryType = QueryTypeQuery
+	}
+
+	resp, err := b.executeIOQuery(ctx, entries, options)
+	if err != nil {
+		return &QueryResult{}, err
+	}
+
+	return b.fetchAndParseBatchedRecordsV2(ctx, resp.ID, options.Continuous, options.PollInterval, options.Head)
 }
 
 // RemoveQuery removes records by query.
@@ -458,261 +507,33 @@ func (b *Bucket) executeQuery(ctx context.Context, entry string, option *QueryOp
 	return resp, nil
 }
 
-// fetchAndParseBatchedRecords fetches and parses batched records with optional polling.
-//
-// It takes a context, entry name, query ID, whether to continue polling on 204 status,
-// polling interval duration, and whether this is a HEAD request.
-// It returns a QueryResult containing the records channel or an error.
-// If continueQuery is true and a 204 status is received, it will wait pollInterval
-// duration and retry the request once before returning.
-func (b *Bucket) fetchAndParseBatchedRecords(ctx context.Context, entry string, id int64, continueQuery bool, pollInterval time.Duration, head bool) (*QueryResult, error) {
-	// Create a buffered channel for records
-	records := make(chan *ReadableRecord, 100)
-
-	// Start a goroutine to continuously fetch records
-	go func() {
-		defer close(records)
-
-		for {
-			record, err := b.readBatchedRecords(ctx, entry, id, head)
-			if err != nil {
-				var apiErr model.APIError
-				if errors.As(err, &apiErr) && apiErr.Status == 204 {
-					if continueQuery {
-						select {
-						case <-ctx.Done():
-							return
-						case <-time.After(pollInterval):
-							continue // Try again after polling interval
-						}
-					}
-					return
-				}
-				return
-			}
-
-			if record == nil {
-				return
-			}
-
-			// Send records to channel
-			for rec := range record {
-				select {
-				case <-ctx.Done():
-				case records <- rec:
-					if rec.IsLast() {
-						return
-					}
-				}
-			}
-
-		}
-	}()
-
-	return &QueryResult{
-		records: records,
-	}, nil
-}
-
-// readBatchedRecords prepares an entry record reader from the reductstore server.
-func (b *Bucket) readBatchedRecords(ctx context.Context, entry string, id int64, head bool) (chan *ReadableRecord, error) {
-	path := fmt.Sprintf("/b/%s/%s/batch?q=%d", b.Name, entry, id)
-	// Create buffered channels
-	records := make(chan *ReadableRecord, 100)
-	var req *http.Request
-	var err error
-	if head {
-		req, err = b.HTTPClient.NewRequestWithContext(ctx, http.MethodHead, path, nil)
-	} else {
-		req, err = b.HTTPClient.NewRequestWithContext(ctx, http.MethodGet, path, nil)
-		if err == nil {
-			req.Header.Set("Accept", "application/octet-stream")
+func (b *Bucket) executeIOQuery(ctx context.Context, entries []string, option *QueryOptions) (QueryResponse, error) {
+	path := fmt.Sprintf("/io/%s/q", b.Name)
+	if option == nil {
+		option = &QueryOptions{
+			QueryType: QueryTypeQuery,
 		}
 	}
+
+	request := ioQueryRequest{
+		QueryType:    option.QueryType,
+		Entries:      entries,
+		Start:        option.Start,
+		Stop:         option.Stop,
+		When:         option.When,
+		Ext:          option.Ext,
+		Strict:       option.Strict,
+		Continuous:   option.Continuous,
+		OnlyMetadata: option.Head,
+	}
+
+	resp := QueryResponse{}
+	err := b.HTTPClient.Post(ctx, path, request, &resp)
 	if err != nil {
-		return nil, err
+		return QueryResponse{}, err
 	}
 
-	resp, err := b.HTTPClient.Do(req) //nolint:bodyclose //intentionally needed for streaming
-	if err != nil {
-		return nil, err
-	}
-
-	if resp.StatusCode == http.StatusNoContent {
-		errorMessage := resp.Header.Get("x-reduct-error")
-		if errorMessage == "" {
-			errorMessage = "No content"
-		}
-		return nil, model.APIError{Status: http.StatusNoContent, Message: errorMessage}
-	}
-
-	// Find all timestamp headers first
-	timeHeaders := make([]int64, 0)
-	for header := range resp.Header {
-		header = strings.ToLower(header)
-		if strings.HasPrefix(header, "x-reduct-time-") {
-			tsStr := strings.TrimPrefix(header, "x-reduct-time-")
-			ts, err := strconv.ParseInt(tsStr, 10, 64)
-			if err != nil {
-				return nil, fmt.Errorf("invalid timestamp %s: %w", tsStr, err)
-			}
-			timeHeaders = append(timeHeaders, ts)
-		}
-	}
-	slices.Sort(timeHeaders)
-	if len(timeHeaders) == 0 {
-		return nil, fmt.Errorf("no records found")
-	}
-	total := len(timeHeaders)
-	var leftover []byte
-	wg := sync.WaitGroup{}
-	wg.Add(1)
-	go func() {
-		defer close(records)
-		defer wg.Done()
-		for i, ts := range timeHeaders {
-			select {
-			case <-ctx.Done():
-				err = fmt.Errorf("context canceled")
-				return
-			default:
-				value := resp.Header.Get(fmt.Sprintf("x-reduct-time-%d", ts))
-				if value == "" {
-					err = fmt.Errorf("no record found for timestamp %d", ts)
-					return
-				}
-
-				// Parse the CSV row
-				parsed := ParseCSVRow(value)
-				isLastInBatch := i == total-1
-				isLastInQuery := resp.Header.Get("x-reduct-last") == "true" && isLastInBatch
-				var buffer = make([]byte, parsed.Size)
-				var body io.ReadCloser
-				switch {
-				case head:
-					body = io.NopCloser(bytes.NewReader([]byte{}))
-				case isLastInBatch:
-					if leftover != nil {
-						body = io.NopCloser(io.MultiReader(bytes.NewReader(leftover), resp.Body))
-						leftover = nil
-					} else {
-						body = resp.Body
-					}
-				default:
-					var n int
-					if leftover != nil {
-						n = copy(buffer, leftover)
-						leftover = leftover[n:]
-					}
-
-					remaining := parsed.Size - int64(n)
-					if remaining > 0 {
-						_, err = io.ReadFull(resp.Body, buffer[n:parsed.Size])
-						if err != nil {
-							return
-						}
-					}
-
-					body = io.NopCloser(bytes.NewReader(buffer[:parsed.Size]))
-				}
-				record := NewReadableRecord(ts, parsed.Size, isLastInQuery, body, parsed.Labels, parsed.ContentType)
-				record.lastInBatch = isLastInBatch
-				select {
-				case <-ctx.Done():
-					err = fmt.Errorf("context canceled")
-					return
-				default:
-					records <- record
-				}
-
-				if isLastInQuery {
-					return
-				}
-			}
-		}
-	}()
-	wg.Wait()
-	return records, err
-}
-
-// CSVRowResult represents the parsed result of a CSV row.
-type CSVRowResult struct {
-	Size        int64    `json:"size"`
-	ContentType string   `json:"content_type,omitempty"`
-	Labels      LabelMap `json:"labels"`
-}
-
-// ParseCSVRow parses a CSV row with support for escaped values.
-func ParseCSVRow(row string) CSVRowResult {
-	items := make([]string, 0)
-	escaped := ""
-	current := ""
-
-	// Split the row into parts, handling escaped quotes
-	for _, char := range row {
-		if char == ',' && escaped == "" {
-			if current != "" {
-				items = append(items, current)
-				current = ""
-			}
-			continue
-		}
-
-		if char == '"' {
-			if escaped == "" {
-				escaped = current
-				current = ""
-			} else {
-				items = append(items, escaped+current)
-				escaped = ""
-				current = ""
-			}
-			continue
-		}
-
-		current += string(char)
-	}
-
-	// Add the last item if exists
-	if current != "" {
-		if escaped != "" {
-			items = append(items, escaped+current)
-		} else {
-			items = append(items, current)
-		}
-	}
-
-	// Parse the results
-	result := CSVRowResult{
-		Labels: make(LabelMap),
-	}
-
-	// Parse size
-	if len(items) > 0 {
-		size, err := strconv.ParseInt(items[0], 10, 64)
-		if err == nil {
-			result.Size = size
-		}
-	}
-
-	// Parse content type
-	if len(items) > 1 {
-		result.ContentType = items[1]
-	}
-
-	// Parse labels
-	for _, item := range items[2:] {
-		if !strings.Contains(item, "=") {
-			continue
-		}
-
-		parts := strings.SplitN(item, "=", 2)
-		if len(parts) == 2 {
-			result.Labels[parts[0]] = parts[1]
-		}
-	}
-
-	return result
+	return resp, nil
 }
 
 // Update updates the labels of an existing record.

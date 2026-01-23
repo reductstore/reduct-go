@@ -204,6 +204,143 @@ func TestQuery(t *testing.T) {
 		assert.Equal(t, 3, recordCount)
 		assert.Equal(t, largeSize, lastRecordSize)
 	})
+
+	t.Run("Query with wildcard entry", func(t *testing.T) {
+		skipVersingLower(ctx, t, "1.18")
+
+		base := fmt.Sprintf("acc-%d", time.Now().UTC().UnixNano())
+		entryOne := base + "-1"
+		entryTwo := base + "-2"
+		wildcard := base + "-*"
+
+		now := time.Now().UTC().UnixMicro()
+		batchOne := mainTestBucket.BeginWriteBatch(ctx, entryOne)
+		batchOne.Add(now+1, []byte("w1"), "text/plain", map[string]any{"entry": "one"})
+		batchOne.Add(now+2, []byte("w2"), "text/plain", map[string]any{"entry": "one"})
+		errMap, err := batchOne.Write(ctx)
+		assert.NoError(t, err)
+		assert.Empty(t, errMap)
+
+		batchTwo := mainTestBucket.BeginWriteBatch(ctx, entryTwo)
+		batchTwo.Add(now+3, []byte("w3"), "text/plain", map[string]any{"entry": "two"})
+		batchTwo.Add(now+4, []byte("w4"), "text/plain", map[string]any{"entry": "two"})
+		errMap, err = batchTwo.Write(ctx)
+		assert.NoError(t, err)
+		assert.Empty(t, errMap)
+
+		queryResult, err := mainTestBucket.Query(ctx, wildcard, nil)
+		assert.NoError(t, err)
+
+		expected := map[string]map[int64]struct {
+			data  string
+			label string
+		}{
+			entryOne: {
+				now + 1: {data: "w1", label: "one"},
+				now + 2: {data: "w2", label: "one"},
+			},
+			entryTwo: {
+				now + 3: {data: "w3", label: "two"},
+				now + 4: {data: "w4", label: "two"},
+			},
+		}
+
+		count := 0
+		entries := map[string]int{}
+		for record := range queryResult.Records() {
+			count++
+			entryName := record.Entry()
+			entries[entryName]++
+			data, err := record.Read()
+			assert.NoError(t, err)
+			expectedEntry := expected[entryName]
+			if assert.NotNil(t, expectedEntry, "unexpected entry %s", entryName) {
+				exp, ok := expectedEntry[record.Time()]
+				if assert.True(t, ok, "unexpected timestamp %d for entry %s", record.Time(), entryName) {
+					assert.Equal(t, exp.data, string(data))
+					assert.Equal(t, exp.label, record.Labels()["entry"])
+				}
+				delete(expectedEntry, record.Time())
+			}
+			if record.IsLast() {
+				break
+			}
+		}
+
+		assert.Equal(t, 4, count)
+		assert.Equal(t, 2, entries[entryOne])
+		assert.Equal(t, 2, entries[entryTwo])
+		assert.Empty(t, expected[entryOne])
+		assert.Empty(t, expected[entryTwo])
+	})
+
+	t.Run("QueryMany across entries", func(t *testing.T) {
+		skipVersingLower(ctx, t, "1.18")
+
+		base := fmt.Sprintf("many-%d", time.Now().UTC().UnixNano())
+		entryOne := base + "-1"
+		entryTwo := base + "-2"
+
+		now := time.Now().UTC().UnixMicro()
+		batchOne := mainTestBucket.BeginWriteBatch(ctx, entryOne)
+		batchOne.Add(now+1, []byte("m1"), "text/plain", map[string]any{"entry": "one"})
+		batchOne.Add(now+2, []byte("m2"), "text/plain", map[string]any{"entry": "one"})
+		errMap, err := batchOne.Write(ctx)
+		assert.NoError(t, err)
+		assert.Empty(t, errMap)
+
+		batchTwo := mainTestBucket.BeginWriteBatch(ctx, entryTwo)
+		batchTwo.Add(now+3, []byte("m3"), "text/plain", map[string]any{"entry": "two"})
+		batchTwo.Add(now+4, []byte("m4"), "text/plain", map[string]any{"entry": "two"})
+		errMap, err = batchTwo.Write(ctx)
+		assert.NoError(t, err)
+		assert.Empty(t, errMap)
+
+		queryResult, err := mainTestBucket.QueryMany(ctx, []string{entryOne, entryTwo}, nil)
+		assert.NoError(t, err)
+
+		expected := map[string]map[int64]struct {
+			data  string
+			label string
+		}{
+			entryOne: {
+				now + 1: {data: "m1", label: "one"},
+				now + 2: {data: "m2", label: "one"},
+			},
+			entryTwo: {
+				now + 3: {data: "m3", label: "two"},
+				now + 4: {data: "m4", label: "two"},
+			},
+		}
+
+		count := 0
+		entries := map[string]int{}
+		for record := range queryResult.Records() {
+			count++
+			entryName := record.Entry()
+			entries[entryName]++
+			data, err := record.Read()
+			assert.NoError(t, err)
+			expectedEntry := expected[entryName]
+			if assert.NotNil(t, expectedEntry, "unexpected entry %s", entryName) {
+				exp, ok := expectedEntry[record.Time()]
+				if assert.True(t, ok, "unexpected timestamp %d for entry %s", record.Time(), entryName) {
+					assert.Equal(t, exp.data, string(data))
+					assert.Equal(t, exp.label, record.Labels()["entry"])
+				}
+				delete(expectedEntry, record.Time())
+			}
+			if record.IsLast() {
+				break
+			}
+		}
+
+		assert.Equal(t, 4, count)
+		assert.Equal(t, 2, entries[entryOne])
+		assert.Equal(t, 2, entries[entryTwo])
+		assert.Empty(t, expected[entryOne])
+		assert.Empty(t, expected[entryTwo])
+	})
 }
 
 func TestRemoveQuery(t *testing.T) {

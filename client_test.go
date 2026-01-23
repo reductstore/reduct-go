@@ -9,6 +9,7 @@ import (
 
 	"github.com/reductstore/reduct-go/model"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestCreateOrGetBucket_Success(t *testing.T) {
@@ -221,19 +222,20 @@ func TestBucketRenameEntry(t *testing.T) {
 		WithQuotaSize(1024 * 1024 * 1024).
 		WithQuotaType(model.QuotaTypeFifo).
 		WithMaxBlockRecords(1000).WithMaxBlockSize(1024).Build()
-	bucket, err := client.CreateOrGetBucket(context.Background(), "test-bucket", &settings)
-	assert.NoError(t, err)
+	bucketName := getRandomBucketName()
+	bucket, err := client.CreateOrGetBucket(context.Background(), bucketName, &settings)
+	require.NoError(t, err)
 	writer := bucket.BeginWrite(context.Background(), "test-entry", nil)
 	err = writer.Write([]byte("test-data"))
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	err = bucket.RenameEntry(context.Background(), "test-entry", "test-entry-new")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	entries, err := bucket.GetEntries(context.Background())
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, 1, len(entries))
 	assert.Equal(t, "test-entry-new", entries[0].Name)
 	// delete bucket
-	err = client.RemoveBucket(context.Background(), "test-bucket")
+	err = client.RemoveBucket(context.Background(), bucketName)
 	assert.NoError(t, err)
 }
 
