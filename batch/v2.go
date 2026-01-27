@@ -143,8 +143,11 @@ func readBatchedRecordsV2(ctx context.Context, client httpclient.HTTPClient, buc
 	}
 
 	recordHeaders := parseRecordHeaders(resp.Header)
+	// Empty batch is valid - close response body and return empty channel
 	if len(recordHeaders) == 0 {
-		return nil, fmt.Errorf("no records found")
+		resp.Body.Close()
+		close(records)
+		return records, nil
 	}
 
 	var leftover []byte
@@ -491,7 +494,8 @@ func resolveLabelName(raw string, labelNames []string) (string, error) {
 func parseHeaderList(header string) ([]string, error) {
 	trimmed := strings.TrimSpace(header)
 	if trimmed == "" {
-		return nil, fmt.Errorf("invalid entries/labels header")
+		// Empty batch has no entries
+		return nil, nil
 	}
 	parts := strings.Split(trimmed, ",")
 	out := make([]string, 0, len(parts))

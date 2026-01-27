@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Support for non-blocking deletions: Add `Status` field to `BucketInfo` and `EntryInfo` models to track deletion state (READY or DELETING), [PR-46](https://github.com/reductstore/reduct-go/pull/46)
 - Support for multiple entry API, [PR-48](https://github.com/reductstore/reduct-go/pull/48)
 
+### Fixed
+
+- Fix crash when multi-entry query receives empty batch, [PR-50](https://github.com/reductstore/reduct-go/pull/50)
+
 ## 1.17.1 - 2025-11-17
 
 ## Added
