@@ -1,6 +1,7 @@
 package batch
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -72,7 +73,7 @@ func TestParseHeaderList(t *testing.T) {
 					t.Errorf("parseHeaderList() expected error but got none")
 					return
 				}
-				if tt.errContains != "" && !contains(err.Error(), tt.errContains) {
+				if tt.errContains != "" && !strings.Contains(err.Error(), tt.errContains) {
 					t.Errorf("parseHeaderList() error = %v, want error containing %v", err, tt.errContains)
 				}
 				return
@@ -104,17 +105,4 @@ func equalStringSlices(a, b []string) bool {
 		}
 	}
 	return true
-}
-
-func contains(s, substr string) bool {
-	return len(s) >= len(substr) && s[:len(substr)] == substr || len(s) > len(substr) && s[len(s)-len(substr):] == substr || len(s) > len(substr) && findSubstring(s, substr)
-}
-
-func findSubstring(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
 }
