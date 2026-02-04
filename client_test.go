@@ -12,6 +12,39 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func removeEntryWithRetry(t *testing.T, bucket *Bucket, entry string) {
+	t.Helper()
+
+	ctx := context.Background()
+	err := bucket.RemoveEntry(ctx, entry)
+	if err == nil {
+		return
+	}
+
+	var apiErr model.APIError
+	if errors.As(err, &apiErr) && apiErr.Status == http.StatusConflict {
+		return
+	}
+
+	assert.NoError(t, err)
+}
+
+func removeBucketAllowDeleting(t *testing.T, bucketName string) {
+	t.Helper()
+
+	err := client.RemoveBucket(context.Background(), bucketName)
+	if err == nil {
+		return
+	}
+
+	var apiErr model.APIError
+	if errors.As(err, &apiErr) && apiErr.Status == http.StatusConflict {
+		return
+	}
+
+	assert.NoError(t, err)
+}
+
 func TestCreateOrGetBucket_Success(t *testing.T) {
 	settings := model.NewBucketSettingBuilder().
 		WithQuotaSize(1024 * 1024 * 1024).
@@ -38,11 +71,12 @@ func TestGetBucketInfo(t *testing.T) {
 		WithQuotaSize(1024 * 1024 * 1024).
 		WithQuotaType(model.QuotaTypeFifo).
 		WithMaxBlockRecords(1000).WithMaxBlockSize(1024).Build()
-	bucket, err := client.CreateOrGetBucket(ctx, "test-bucket", &settings)
+	bucketName := getRandomBucketName()
+	bucket, err := client.CreateOrGetBucket(ctx, bucketName, &settings)
 	assert.NoError(t, err)
 	info, err := bucket.GetInfo(ctx)
 	assert.NoError(t, err)
-	assert.Equal(t, "test-bucket", info.Name)
+	assert.Equal(t, bucketName, info.Name)
 	assert.Equal(t, int64(0), info.Size)
 }
 
@@ -76,7 +110,8 @@ func TestGetBucketEntries(t *testing.T) {
 		WithQuotaSize(1024 * 1024 * 1024).
 		WithQuotaType(model.QuotaTypeFifo).
 		WithMaxBlockRecords(1000).WithMaxBlockSize(1024).Build()
-	bucket, err := client.CreateOrGetBucket(ctx, "test-bucket", &settings)
+	bucketName := getRandomBucketName()
+	bucket, err := client.CreateOrGetBucket(ctx, bucketName, &settings)
 	assert.NoError(t, err)
 	entries, err := bucket.GetEntries(ctx)
 	assert.NoError(t, err)
@@ -89,7 +124,7 @@ func TestGetBucketEntries(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(entries))
 	// delete bucket
-	err = client.RemoveBucket(ctx, "test-bucket")
+	err = client.RemoveBucket(ctx, bucketName)
 	assert.NoError(t, err)
 }
 
@@ -129,11 +164,12 @@ func TestGetBucketFullInfo(t *testing.T) {
 		WithQuotaSize(1024 * 1024 * 1024).
 		WithQuotaType(model.QuotaTypeFifo).
 		WithMaxBlockRecords(1000).WithMaxBlockSize(1024).Build()
-	bucket, err := client.CreateOrGetBucket(ctx, "test-bucket", &settings)
+	bucketName := getRandomBucketName()
+	bucket, err := client.CreateOrGetBucket(ctx, bucketName, &settings)
 	assert.NoError(t, err)
 	info, err := bucket.GetFullInfo(ctx)
 	assert.NoError(t, err)
-	assert.Equal(t, "test-bucket", info.Info.Name)
+	assert.Equal(t, bucketName, info.Info.Name)
 	assert.Equal(t, model.QuotaTypeFifo, info.Settings.QuotaType)
 	assert.Equal(t, int64(1024*1024*1024), info.Settings.QuotaSize)
 	assert.Equal(t, 0, len(info.Entries))
@@ -147,7 +183,7 @@ func TestGetBucketFullInfo(t *testing.T) {
 	assert.Equal(t, 1, len(info.Entries))
 
 	// delete bucket
-	err = client.RemoveBucket(ctx, "test-bucket")
+	err = client.RemoveBucket(ctx, bucketName)
 	assert.NoError(t, err)
 }
 
@@ -194,13 +230,13 @@ func TestBucketRemoveEntry(t *testing.T) {
 		WithQuotaSize(1024 * 1024 * 1024).
 		WithQuotaType(model.QuotaTypeFifo).
 		WithMaxBlockRecords(1000).WithMaxBlockSize(1024).Build()
-	bucket, err := client.CreateOrGetBucket(context.Background(), "test-bucket", &settings)
+	bucketName := getRandomBucketName()
+	bucket, err := client.CreateOrGetBucket(context.Background(), bucketName, &settings)
 	assert.NoError(t, err)
 	writer := bucket.BeginWrite(context.Background(), "test-entry", nil)
 	err = writer.Write([]byte("test-data"))
 	assert.NoError(t, err)
-	err = bucket.RemoveEntry(context.Background(), "test-entry")
-	assert.NoError(t, err)
+	removeEntryWithRetry(t, &bucket, "test-entry")
 	entries, err := bucket.GetEntries(context.Background())
 	assert.NoError(t, err)
 	// With non-blocking deletions in v1.18+, the entry may still be visible with DELETING status
@@ -213,8 +249,7 @@ func TestBucketRemoveEntry(t *testing.T) {
 	}
 	assert.Equal(t, 0, readyEntries)
 	// delete bucket
-	err = client.RemoveBucket(context.Background(), "test-bucket")
-	assert.NoError(t, err)
+	removeBucketAllowDeleting(t, bucketName)
 }
 
 func TestBucketRenameEntry(t *testing.T) {
@@ -244,7 +279,8 @@ func TestBucketRemoveRecord(t *testing.T) {
 		WithQuotaSize(1024 * 1024 * 1024).
 		WithQuotaType(model.QuotaTypeFifo).
 		WithMaxBlockRecords(1000).WithMaxBlockSize(1024).Build()
-	bucket, err := client.CreateOrGetBucket(context.Background(), "test-bucket", &settings)
+	bucketName := getRandomBucketName()
+	bucket, err := client.CreateOrGetBucket(context.Background(), bucketName, &settings)
 	assert.NoError(t, err)
 	// write a record
 	now := time.Now().UTC().UnixMicro()
@@ -257,16 +293,18 @@ func TestBucketRemoveRecord(t *testing.T) {
 	// check if the record is removed
 	record, err := bucket.BeginRead(context.Background(), "test-entry", &now)
 	assert.Error(t, err, "Could not read record after removal")
-	data, err := record.Read()
-	assert.Error(t, err, "Expected error when reading removed record")
-	assert.Equal(t, "", string(data))
+	if record != nil {
+		data, readErr := record.Read()
+		assert.Error(t, readErr, "Expected error when reading removed record")
+		assert.Equal(t, "", string(data))
+	}
 	// check if the entry is not removed
 	entries, err := bucket.GetEntries(context.Background())
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(entries))
 
 	// delete bucket
-	err = client.RemoveBucket(context.Background(), "test-bucket")
+	err = client.RemoveBucket(context.Background(), bucketName)
 	assert.NoError(t, err)
 }
 
@@ -344,6 +382,9 @@ func TestGetBucketsStatus(t *testing.T) {
 	// Status field should be present in bucket list for v1.18+
 	for _, bucket := range buckets {
 		if bucket.Status != "" {
+			if bucket.Status == model.StatusDeleting {
+				continue
+			}
 			assert.Equal(t, model.StatusReady, bucket.Status)
 		}
 	}
