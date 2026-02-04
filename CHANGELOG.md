@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 1.18.0 - 2026-02-04
+
 ### Added
 
 - Support replication modes (`enabled`, `paused`, `disabled`), [PR-44](https://github.com/reductstore/reduct-go/pull/44)
