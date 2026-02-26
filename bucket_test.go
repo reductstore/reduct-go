@@ -163,6 +163,73 @@ func TestUpdateRecordLabels(t *testing.T) {
 	assert.Equal(t, "new-value", labels["updated"], "updated label should be set")
 }
 
+func TestWriteReadAttachments(t *testing.T) {
+	ctx := context.Background()
+	skipVersingLower(ctx, t, "1.19.0")
+
+	entry := fmt.Sprintf("test-attachments-%d", time.Now().UTC().UnixNano())
+	attachments := map[string]any{
+		"meta-1": map[string]any{
+			"enabled": true,
+			"values":  []any{"one", "two"},
+		},
+		"meta-2": map[string]any{
+			"name": "test",
+		},
+	}
+
+	err := mainTestBucket.WriteAttachments(ctx, entry, attachments)
+	assert.NoError(t, err)
+
+	readAttachments, err := mainTestBucket.ReadAttachments(ctx, entry)
+	assert.NoError(t, err)
+	assert.Equal(t, attachments, readAttachments)
+}
+
+func TestRemoveSelectedAttachments(t *testing.T) {
+	ctx := context.Background()
+	skipVersingLower(ctx, t, "1.19.0")
+
+	entry := fmt.Sprintf("test-attachments-remove-selected-%d", time.Now().UTC().UnixNano())
+	initialAttachments := map[string]any{
+		"meta-1": map[string]any{"value": "one"},
+		"meta-2": map[string]any{"value": "two"},
+	}
+
+	err := mainTestBucket.WriteAttachments(ctx, entry, initialAttachments)
+	assert.NoError(t, err)
+
+	err = mainTestBucket.RemoveAttachments(ctx, entry, []string{"meta-1"})
+	assert.NoError(t, err)
+
+	attachments, err := mainTestBucket.ReadAttachments(ctx, entry)
+	assert.NoError(t, err)
+	assert.Equal(t, map[string]any{
+		"meta-2": map[string]any{"value": "two"},
+	}, attachments)
+}
+
+func TestRemoveAllAttachments(t *testing.T) {
+	ctx := context.Background()
+	skipVersingLower(ctx, t, "1.19.0")
+
+	entry := fmt.Sprintf("test-attachments-remove-all-%d", time.Now().UTC().UnixNano())
+	initialAttachments := map[string]any{
+		"meta-1": map[string]any{"value": "one"},
+		"meta-2": map[string]any{"value": "two"},
+	}
+
+	err := mainTestBucket.WriteAttachments(ctx, entry, initialAttachments)
+	assert.NoError(t, err)
+
+	err = mainTestBucket.RemoveAttachments(ctx, entry, nil)
+	assert.NoError(t, err)
+
+	attachments, err := mainTestBucket.ReadAttachments(ctx, entry)
+	assert.NoError(t, err)
+	assert.Equal(t, map[string]any{}, attachments)
+}
+
 func TestQueryLink(t *testing.T) {
 	ctx := context.Background()
 	skipVersingLower(ctx, t, "1.17.0")
