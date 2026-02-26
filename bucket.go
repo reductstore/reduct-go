@@ -2,6 +2,7 @@ package reductgo
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -627,6 +628,169 @@ func (b *Bucket) Update(ctx context.Context, entry string, ts int64, labels Labe
 		}
 	}
 
+	return nil
+}
+
+// WriteAttachments writes JSON-serializable attachment payloads for an entry.
+// Attachments are stored in the `<entry>/$meta` entry.
+//
+// Parameters:
+//   - ctx: Context for cancellation and timeout control
+//   - entry: Name of the entry
+//   - attachments: Attachment key/value payloads
+func (b *Bucket) WriteAttachments(ctx context.Context, entry string, attachments map[string]any) error {
+	if entry == "" {
+		return fmt.Errorf("entry name is required for attachments")
+	}
+	if len(attachments) == 0 {
+		return nil
+	}
+
+	metaEntry := fmt.Sprintf("%s/$meta", entry)
+	ts := time.Now().UTC().UnixMicro()
+
+	batch := b.BeginWriteRecordBatch(ctx)
+	for key, payload := range attachments {
+		data, err := json.Marshal(payload)
+		if err != nil {
+			return fmt.Errorf("failed to marshal attachment %q: %w", key, err)
+		}
+
+		batch.Add(metaEntry, ts, data, "application/json", LabelMap{"key": key})
+		ts++
+	}
+
+	errs, err := batch.Send(ctx)
+	if err != nil {
+		return err
+	}
+	return firstRecordBatchError(errs)
+}
+
+// ReadAttachments reads attachments for an entry from `<entry>/$meta`.
+//
+// Parameters:
+//   - ctx: Context for cancellation and timeout control
+//   - entry: Name of the entry
+//
+// Returns a map where keys are attachment names and values are decoded JSON payloads.
+func (b *Bucket) ReadAttachments(ctx context.Context, entry string) (map[string]any, error) {
+	if entry == "" {
+		return nil, fmt.Errorf("entry name is required for attachments")
+	}
+
+	queryResult, err := b.Query(ctx, fmt.Sprintf("%s/$meta", entry), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	attachments := map[string]any{}
+	for record := range queryResult.Records() {
+		key, ok := record.Labels()["key"]
+		if !ok {
+			if record.IsLast() {
+				break
+			}
+			continue
+		}
+		attachmentKey := fmt.Sprint(key)
+
+		if removed, found := record.Labels()["remove"]; found && strings.EqualFold(fmt.Sprint(removed), "true") {
+			delete(attachments, attachmentKey)
+			if record.IsLast() {
+				break
+			}
+			continue
+		}
+
+		content, err := record.Read()
+		if err != nil {
+			return nil, err
+		}
+
+		var payload any
+		if err := json.Unmarshal(content, &payload); err != nil {
+			return nil, fmt.Errorf("failed to decode attachment %q: %w", fmt.Sprint(key), err)
+		}
+
+		attachments[attachmentKey] = payload
+
+		if record.IsLast() {
+			break
+		}
+	}
+
+	return attachments, nil
+}
+
+// RemoveAttachments marks selected or all attachments as removed.
+// If attachmentKeys is nil or empty, all attachments are removed.
+//
+// Parameters:
+//   - ctx: Context for cancellation and timeout control
+//   - entry: Name of the entry
+//   - attachmentKeys: Optional attachment keys to remove
+func (b *Bucket) RemoveAttachments(ctx context.Context, entry string, attachmentKeys []string) error {
+	if entry == "" {
+		return fmt.Errorf("entry name is required for attachments")
+	}
+
+	keyFilter := map[string]struct{}{}
+	for _, key := range attachmentKeys {
+		keyFilter[key] = struct{}{}
+	}
+
+	queryResult, err := b.Query(ctx, fmt.Sprintf("%s/$meta", entry), nil)
+	if err != nil {
+		return err
+	}
+
+	removeBatch := b.BeginUpdateRecordBatch(ctx)
+	recordCount := 0
+	for record := range queryResult.Records() {
+		key, ok := record.Labels()["key"]
+		if !ok {
+			if record.IsLast() {
+				break
+			}
+			continue
+		}
+
+		attachmentKey := fmt.Sprint(key)
+		if len(keyFilter) > 0 {
+			if _, found := keyFilter[attachmentKey]; !found {
+				if record.IsLast() {
+					break
+				}
+				continue
+			}
+		}
+
+		removeBatch.AddOnlyLabels(record.Entry(), record.Time(), LabelMap{"remove": "true"})
+		recordCount++
+
+		if record.IsLast() {
+			break
+		}
+	}
+
+	if recordCount == 0 {
+		return nil
+	}
+
+	errs, err := removeBatch.Send(ctx)
+	if err != nil {
+		return err
+	}
+	return firstRecordBatchError(errs)
+}
+
+func firstRecordBatchError(errs RecordBatchErrorMap) error {
+	for entry, entryErrors := range errs {
+		for ts, apiErr := range entryErrors {
+			return fmt.Errorf("batch operation failed for entry %q at timestamp %d: %w", entry, ts, apiErr)
+		}
+	}
 	return nil
 }
 
