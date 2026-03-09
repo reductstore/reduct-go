@@ -701,7 +701,7 @@ func encodeHeaderComponent(value string) string {
 		if isTchar(b) {
 			builder.WriteByte(b)
 		} else {
-			builder.WriteString(fmt.Sprintf("%%%02X", b))
+			_, _ = fmt.Fprintf(&builder, "%%%02X", b)
 		}
 	}
 	return builder.String()

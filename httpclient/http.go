@@ -468,6 +468,7 @@ func (c *httpClient) Do(req *http.Request) (*http.Response, error) {
 	// set request headers
 	c.setClientHeaders(req)
 	// Create an HTTP client and perform the Do
+	// #nosec G704 -- request URL is controlled by configured client base URL (or explicitly by SDK caller via NewRequest APIs).
 	resp, err := c.client.Do(req)
 
 	if err != nil {

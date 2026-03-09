@@ -735,12 +735,25 @@ func (b *Bucket) RemoveAttachments(ctx context.Context, entry string, attachment
 		return fmt.Errorf("entry name is required for attachments")
 	}
 
-	keyFilter := map[string]struct{}{}
-	for _, key := range attachmentKeys {
-		keyFilter[key] = struct{}{}
+	var queryOptions *QueryOptions
+	if len(attachmentKeys) > 0 {
+		inValues := make([]any, 0, len(attachmentKeys)+1)
+		inValues = append(inValues, map[string]any{
+			"&key": map[string]any{
+				"$cast": "string",
+			},
+		})
+		for _, key := range attachmentKeys {
+			inValues = append(inValues, key)
+		}
+		queryOptions = &QueryOptions{
+			When: map[string]any{
+				"$in": inValues,
+			},
+		}
 	}
 
-	queryResult, err := b.Query(ctx, fmt.Sprintf("%s/$meta", entry), nil)
+	queryResult, err := b.Query(ctx, fmt.Sprintf("%s/$meta", entry), queryOptions)
 	if err != nil {
 		return err
 	}
@@ -748,22 +761,12 @@ func (b *Bucket) RemoveAttachments(ctx context.Context, entry string, attachment
 	removeBatch := b.BeginUpdateRecordBatch(ctx)
 	recordCount := 0
 	for record := range queryResult.Records() {
-		key, ok := record.Labels()["key"]
+		_, ok := record.Labels()["key"]
 		if !ok {
 			if record.IsLast() {
 				break
 			}
 			continue
-		}
-
-		attachmentKey := fmt.Sprint(key)
-		if len(keyFilter) > 0 {
-			if _, found := keyFilter[attachmentKey]; !found {
-				if record.IsLast() {
-					break
-				}
-				continue
-			}
 		}
 
 		removeBatch.AddOnlyLabels(record.Entry(), record.Time(), LabelMap{"remove": "true"})

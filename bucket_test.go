@@ -230,6 +230,44 @@ func TestRemoveAllAttachments(t *testing.T) {
 	assert.Equal(t, map[string]any{}, attachments)
 }
 
+func TestRemoveAttachmentsWithNumericKeys(t *testing.T) {
+	ctx := context.Background()
+	skipVersingLower(ctx, t, "1.19.0")
+
+	entry := fmt.Sprintf("test-attachments-remove-numeric-%d", time.Now().UTC().UnixNano())
+	initialAttachments := map[string]any{
+		"1": map[string]any{
+			"enabled": true,
+			"values":  []any{1, 2, 3},
+		},
+		"2.5": map[string]any{
+			"name": "test",
+		},
+	}
+
+	err := mainTestBucket.WriteAttachments(ctx, entry, initialAttachments)
+	assert.NoError(t, err)
+
+	attachments, err := mainTestBucket.ReadAttachments(ctx, entry)
+	assert.NoError(t, err)
+	assert.Equal(t, map[string]any{
+		"1": map[string]any{
+			"enabled": true,
+			"values":  []any{float64(1), float64(2), float64(3)},
+		},
+		"2.5": map[string]any{
+			"name": "test",
+		},
+	}, attachments)
+
+	err = mainTestBucket.RemoveAttachments(ctx, entry, []string{"1", "2.5"})
+	assert.NoError(t, err)
+
+	attachments, err = mainTestBucket.ReadAttachments(ctx, entry)
+	assert.NoError(t, err)
+	assert.Equal(t, map[string]any{}, attachments)
+}
+
 func TestQueryLink(t *testing.T) {
 	ctx := context.Background()
 	skipVersingLower(ctx, t, "1.17.0")

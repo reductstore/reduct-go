@@ -188,10 +188,10 @@ func TestQuery(t *testing.T) {
 
 				// Verify the content (check first and last few bytes)
 				for i := 0; i < 1024; i++ { // Check first 1KB
-					assert.Equal(t, byte(i%256), data[i])
+					assert.Equal(t, i%256, int(data[i]))
 				}
 				for i := len(data) - 1024; i < len(data); i++ { // Check last 1KB
-					assert.Equal(t, byte(i%256), data[i])
+					assert.Equal(t, i%256, int(data[i]))
 				}
 			} else {
 				// Verify small records
