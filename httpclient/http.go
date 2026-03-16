@@ -3,6 +3,8 @@ package httpclient
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,6 +12,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"time"
 
 	"github.com/reductstore/reduct-go/model"
@@ -41,29 +44,81 @@ type HTTPClient interface {
 }
 
 type Option struct {
-	BaseURL   string
-	APIToken  string
-	Timeout   time.Duration
-	VerifySSL bool
+	BaseURL  string
+	APIToken string
+	Timeout  time.Duration
+	// Deprecated: TLS verification is enabled by default. Use InsecureSkipVerify to disable it explicitly.
+	VerifySSL          bool
+	InsecureSkipVerify bool
+	CACertPath         string
 }
 
 type httpClient struct {
 	client   *http.Client
 	apiToken string
 	url      string
+	initErr  error
 }
 
 func NewHTTPClient(option Option) HTTPClient {
+	transport, err := buildTransport(option)
+
 	return &httpClient{
 		client: &http.Client{
-			Timeout: option.Timeout,
+			Timeout:   option.Timeout,
+			Transport: transport,
 		},
 		url:      fmt.Sprintf("%s/api/%s", option.BaseURL, APIVersion),
 		apiToken: option.APIToken,
+		initErr:  err,
 	}
 }
 
+func buildTransport(option Option) (*http.Transport, error) {
+	transport, ok := http.DefaultTransport.(*http.Transport)
+	if !ok {
+		return nil, errors.New("default HTTP transport has unexpected type")
+	}
+
+	cloned := transport.Clone()
+	if option.CACertPath == "" && !option.InsecureSkipVerify {
+		return cloned, nil
+	}
+
+	// #nosec G402 -- caller must opt in explicitly; this preserves secure defaults while allowing test/private CA troubleshooting.
+	tlsConfig := &tls.Config{
+		InsecureSkipVerify: option.InsecureSkipVerify,
+	}
+
+	if option.CACertPath != "" {
+		rootCAs, err := x509.SystemCertPool()
+		if err != nil {
+			return nil, fmt.Errorf("load system cert pool: %w", err)
+		}
+		if rootCAs == nil {
+			rootCAs = x509.NewCertPool()
+		}
+
+		caPEM, err := os.ReadFile(option.CACertPath)
+		if err != nil {
+			return nil, fmt.Errorf("read CA certificate %q: %w", option.CACertPath, err)
+		}
+
+		if !rootCAs.AppendCertsFromPEM(caPEM) {
+			return nil, fmt.Errorf("parse CA certificate %q: no PEM certificates found", option.CACertPath)
+		}
+		tlsConfig.RootCAs = rootCAs
+	}
+
+	cloned.TLSClientConfig = tlsConfig
+	return cloned, nil
+}
+
 func (c *httpClient) NewRequest(method, path string, body io.Reader) (*http.Request, error) {
+	if c.initErr != nil {
+		return nil, c.initErr
+	}
+
 	req, err := http.NewRequest(method, c.url+path, body)
 	if err != nil {
 		return nil, err
@@ -73,6 +128,10 @@ func (c *httpClient) NewRequest(method, path string, body io.Reader) (*http.Requ
 }
 
 func (c *httpClient) NewRequestWithContext(ctx context.Context, method, path string, body io.Reader) (*http.Request, error) {
+	if c.initErr != nil {
+		return nil, c.initErr
+	}
+
 	req, err := http.NewRequestWithContext(ctx, method, c.url+path, body)
 	if err != nil {
 		return nil, err
@@ -299,42 +358,62 @@ func (c *httpClient) Post(ctx context.Context, path string, requestBody, respons
 func handleHTTPError(err error, status int) error {
 	var opErr *net.OpError
 	var urlErr *url.Error
+	var unknownAuthorityErr x509.UnknownAuthorityError
+	var hostnameErr x509.HostnameError
+	var certInvalidErr x509.CertificateInvalidError
+	var recordHeaderErr tls.RecordHeaderError
+	originalErr := err
+
+	if errors.As(err, &urlErr) && urlErr.Err != nil {
+		err = urlErr.Err
+	}
 
 	switch {
 	case errors.As(err, &opErr):
 		return &model.APIError{
 			Message:  "network error",
-			Original: err,
+			Original: originalErr,
 			Status:   ConnectionError,
 		}
-	case errors.As(err, &urlErr):
+	case errors.As(err, &unknownAuthorityErr),
+		errors.As(err, &hostnameErr),
+		errors.As(err, &certInvalidErr),
+		errors.As(err, &recordHeaderErr),
+		errors.Is(err, io.EOF),
+		errors.Is(err, io.ErrUnexpectedEOF):
 		return &model.APIError{
-			Message:  "invalid url",
-			Original: err,
+			Message:  err.Error(),
+			Original: originalErr,
+			Status:   ConnectionError,
+		}
+	case errors.As(originalErr, &urlErr):
+		return &model.APIError{
+			Message:  err.Error(),
+			Original: originalErr,
 			Status:   URLParseError,
 		}
 	case errors.Is(err, http.ErrServerClosed):
 		return &model.APIError{
 			Message:  "server closed",
-			Original: err,
+			Original: originalErr,
 			Status:   ConnectionError,
 		}
 	case errors.Is(err, context.Canceled):
 		return &model.APIError{
 			Message:  "request canceled",
-			Original: err,
+			Original: originalErr,
 			Status:   Interrupt,
 		}
 	case errors.Is(err, context.DeadlineExceeded):
 		return &model.APIError{
 			Message:  "request timed out",
-			Original: err,
+			Original: originalErr,
 			Status:   Timeout,
 		}
 	default:
 		return &model.APIError{
 			Message:  err.Error(),
-			Original: err,
+			Original: originalErr,
 			Status:   status,
 		}
 	}
@@ -465,6 +544,10 @@ func (c *httpClient) Delete(ctx context.Context, path string) error {
 }
 
 func (c *httpClient) Do(req *http.Request) (*http.Response, error) {
+	if c.initErr != nil {
+		return nil, c.initErr
+	}
+
 	// set request headers
 	c.setClientHeaders(req)
 	// Create an HTTP client and perform the Do

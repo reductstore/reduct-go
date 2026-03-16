@@ -21,7 +21,7 @@ The ReductStore Client SDK for Golang is an HTTP client wrapper for interacting 
 
 ## Getting Started
 
-To get started with the ReductStore Client SDK for Golang, you'll need to have ReductStore installed and running on your machine. 
+To get started with the ReductStore Client SDK for Golang, you'll need to have ReductStore installed and running on your machine.
 You can find instructions for installing ReductStore [here](https://www.reduct.store/docs/getting-started#docker).
 
 Once you have ReductStore up and running, you can install the ReductStore Client SDK for Golang using go get:
@@ -101,6 +101,24 @@ func main() {
 	}
 }
 
+```
+
+For HTTPS deployments with private certificate authorities, pass the CA file used by your environment:
+
+```go
+client := reduct.NewClient("https://storage.internal:8383", reduct.ClientOptions{
+	APIToken:   "my-token",
+	CACertPath: "/etc/ssl/certs/company-root-ca.pem",
+})
+```
+
+For test environments with self-signed certificates, you can explicitly disable certificate verification:
+
+```go
+client := reduct.NewClient("https://localhost:8383", reduct.ClientOptions{
+	APIToken:           "my-token",
+	InsecureSkipVerify: true,
+})
 ```
 
 For more examples, see the [Guides](https://www.reduct.store/docs/guides) section in the ReductStore documentation.

@@ -62,9 +62,12 @@ type Client interface {
 }
 
 type ClientOptions struct {
-	APIToken  string
-	Timeout   time.Duration
-	VerifySSL bool
+	APIToken string
+	Timeout  time.Duration
+	// Deprecated: TLS verification is enabled by default. Use InsecureSkipVerify to disable it explicitly.
+	VerifySSL          bool
+	InsecureSkipVerify bool
+	CACertPath         string
 }
 type ReductClient struct {
 	url      string
@@ -85,9 +88,12 @@ func NewClient(url string, options ClientOptions) Client {
 		APIToken: options.APIToken,
 	}
 	client.HTTPClient = httpclient.NewHTTPClient(httpclient.Option{
-		APIToken: options.APIToken,
-		Timeout:  options.Timeout,
-		BaseURL:  url,
+		APIToken:           options.APIToken,
+		Timeout:            options.Timeout,
+		BaseURL:            url,
+		VerifySSL:          options.VerifySSL,
+		InsecureSkipVerify: options.InsecureSkipVerify,
+		CACertPath:         options.CACertPath,
 	})
 
 	return client
@@ -98,7 +104,7 @@ func (c *ReductClient) GetInfo(ctx context.Context) (model.ServerInfo, error) {
 	var info model.ServerInfo
 	err := c.HTTPClient.Get(ctx, "/info", &info)
 	if err != nil {
-		return model.ServerInfo{}, model.APIError{Message: err.Error(), Original: err}
+		return model.ServerInfo{}, err
 	}
 
 	// Check version compatibility
@@ -114,7 +120,7 @@ func (c *ReductClient) GetInfo(ctx context.Context) (model.ServerInfo, error) {
 func (c *ReductClient) IsLive(ctx context.Context) (bool, error) {
 	err := c.HTTPClient.Head(ctx, "/alive")
 	if err != nil {
-		return false, model.APIError{Message: err.Error(), Original: err}
+		return false, err
 	}
 	return true, nil
 }
@@ -196,7 +202,7 @@ func (c *ReductClient) GetTokens(ctx context.Context) ([]model.Token, error) {
 	var tokens map[string][]model.Token
 	err := c.HTTPClient.Get(ctx, "/tokens", &tokens)
 	if err != nil {
-		return nil, model.APIError{Message: err.Error(), Original: err}
+		return nil, err
 	}
 	return tokens["tokens"], nil
 }
@@ -206,7 +212,7 @@ func (c *ReductClient) GetToken(ctx context.Context, name string) (model.Token, 
 	var token model.Token
 	err := c.HTTPClient.Get(ctx, fmt.Sprintf("/tokens/%s", name), &token)
 	if err != nil {
-		return model.Token{}, model.APIError{Message: err.Error(), Original: err}
+		return model.Token{}, err
 	}
 	return token, nil
 }
@@ -217,7 +223,7 @@ func (c *ReductClient) CreateToken(ctx context.Context, name string, permissions
 	var token tokenInfo
 	err := c.HTTPClient.Post(ctx, fmt.Sprintf("/tokens/%s", name), permissions, &token)
 	if err != nil {
-		return "", model.APIError{Message: err.Error(), Original: err}
+		return "", err
 	}
 	return token.Value, nil
 }
@@ -242,7 +248,7 @@ func (c *ReductClient) GetCurrentToken(ctx context.Context) (model.Token, error)
 	var token model.Token
 	err := c.HTTPClient.Get(ctx, "/me", &token)
 	if err != nil {
-		return model.Token{}, model.APIError{Message: err.Error(), Original: err}
+		return model.Token{}, err
 	}
 	return token, nil
 }
