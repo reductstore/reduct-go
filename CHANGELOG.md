@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Fix removing attachments with numeric keys in `Bucket.RemoveAttachments` and include related lint fixes, [PR-52](https://github.com/reductstore/reduct-go/pull/52)
+- Fix removing attachments with `$`-prefixed keys in `Bucket.RemoveAttachments`, [#54](https://github.com/reductstore/reduct-go/issues/54)
 
 ## 1.18.0 - 2026-02-04
 
