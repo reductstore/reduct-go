@@ -737,13 +737,23 @@ func (b *Bucket) RemoveAttachments(ctx context.Context, entry string, attachment
 
 	var queryOptions *QueryOptions
 	if len(attachmentKeys) > 0 {
+		escapedKeys := make([]string, len(attachmentKeys))
+		// ReductStore's query DSL treats leading '$' as an operator, so escape it to match literal attachment keys.
+		for i, key := range attachmentKeys {
+			if strings.HasPrefix(key, "$") {
+				escapedKeys[i] = "$" + key
+				continue
+			}
+			escapedKeys[i] = key
+		}
+
 		inValues := make([]any, 0, len(attachmentKeys)+1)
 		inValues = append(inValues, map[string]any{
 			"&key": map[string]any{
 				"$cast": "string",
 			},
 		})
-		for _, key := range attachmentKeys {
+		for _, key := range escapedKeys {
 			inValues = append(inValues, key)
 		}
 		queryOptions = &QueryOptions{

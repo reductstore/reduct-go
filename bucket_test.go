@@ -192,14 +192,15 @@ func TestRemoveSelectedAttachments(t *testing.T) {
 
 	entry := fmt.Sprintf("test-attachments-remove-selected-%d", time.Now().UTC().UnixNano())
 	initialAttachments := map[string]any{
-		"meta-1": map[string]any{"value": "one"},
-		"meta-2": map[string]any{"value": "two"},
+		"meta-1":  map[string]any{"value": "one"},
+		"meta-2":  map[string]any{"value": "two"},
+		"$system": map[string]any{"value": "secret"},
 	}
 
 	err := mainTestBucket.WriteAttachments(ctx, entry, initialAttachments)
 	assert.NoError(t, err)
 
-	err = mainTestBucket.RemoveAttachments(ctx, entry, []string{"meta-1"})
+	err = mainTestBucket.RemoveAttachments(ctx, entry, []string{"meta-1", "$system"})
 	assert.NoError(t, err)
 
 	attachments, err := mainTestBucket.ReadAttachments(ctx, entry)
