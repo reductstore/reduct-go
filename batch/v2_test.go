@@ -135,7 +135,9 @@ func TestFetchAndParseV2_ContinueQueryOnEmptyBatch(t *testing.T) {
 		w.Header().Set("x-reduct-0-0", "5,text/plain")
 		w.Header().Set("x-reduct-last", "true")
 		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte("hello"))
+		if _, err := w.Write([]byte("hello")); err != nil {
+			t.Fatalf("failed to write response body: %v", err)
+		}
 	}))
 	defer server.Close()
 
