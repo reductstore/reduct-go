@@ -1,8 +1,16 @@
 package batch
 
 import (
+	"context"
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
+
+	"github.com/reductstore/reduct-go/httpclient"
 )
 
 func TestParseHeaderList(t *testing.T) {
@@ -105,4 +113,68 @@ func equalStringSlices(a, b []string) bool {
 		}
 	}
 	return true
+}
+
+func TestFetchAndParseV2_ContinueQueryOnEmptyBatch(t *testing.T) {
+	var requests int32
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v1/io/bucket/read" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+
+		w.Header().Set("X-Reduct-API", "v1.3")
+		w.Header().Set("x-reduct-entries", "entry")
+		w.Header().Set("x-reduct-start-ts", "100")
+
+		if atomic.AddInt32(&requests, 1) == 1 {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		w.Header().Set("x-reduct-0-0", "5,text/plain")
+		w.Header().Set("x-reduct-last", "true")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("hello"))
+	}))
+	defer server.Close()
+
+	client := httpclient.NewHTTPClient(httpclient.Option{BaseURL: server.URL, Timeout: time.Second})
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	records, err := FetchAndParseV2(ctx, client, "bucket", 1, true, 10*time.Millisecond, false)
+	if err != nil {
+		t.Fatalf("FetchAndParseV2() error = %v", err)
+	}
+
+	select {
+	case rec, ok := <-records:
+		if !ok {
+			t.Fatal("records channel closed before receiving data")
+		}
+		if rec == nil {
+			t.Fatal("record is nil")
+		}
+		if rec.Entry != "entry" {
+			t.Fatalf("record entry = %q, want %q", rec.Entry, "entry")
+		}
+		if !rec.Last {
+			t.Fatal("expected record.Last = true")
+		}
+		body, readErr := io.ReadAll(rec.Body)
+		if readErr != nil {
+			t.Fatalf("failed to read record body: %v", readErr)
+		}
+		_ = rec.Body.Close()
+		if string(body) != "hello" {
+			t.Fatalf("record body = %q, want %q", string(body), "hello")
+		}
+	case <-ctx.Done():
+		t.Fatal("timed out waiting for record after empty batch")
+	}
+
+	if atomic.LoadInt32(&requests) < 2 {
+		t.Fatalf("expected at least 2 read requests, got %d", requests)
+	}
 }
