@@ -65,6 +65,14 @@ func FetchAndParseV2(ctx context.Context, client httpclient.HTTPClient, bucketNa
 			}
 
 			if record == nil {
+				if continueQuery {
+					select {
+					case <-ctx.Done():
+						return
+					case <-time.After(pollInterval):
+						continue
+					}
+				}
 				return
 			}
 
