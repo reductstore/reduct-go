@@ -12,11 +12,6 @@ import (
 	"github.com/reductstore/reduct-go/model"
 )
 
-type tokenInfo struct {
-	Value     string `json:"value"`
-	CreatedAt string `json:"created_at"`
-}
-
 var defaultClientTimeout = 60 * time.Second
 
 // this is a client for a ReductStore instance.
@@ -41,8 +36,13 @@ type Client interface {
 	GetTokens(ctx context.Context) ([]model.Token, error)
 	// Show Information about a Token
 	GetToken(ctx context.Context, name string) (model.Token, error)
-	// Create a New Token
+	// Create a New Token using compatibility payload with permissions only
+	// Deprecated: Use CreateTokenWithOptions. This method will be removed in v1.22.
 	CreateToken(ctx context.Context, name string, permissions model.TokenPermissions) (string, error)
+	// CreateTokenWithOptions creates a token using API v2 payload (expiry/ttl/ip allowlist)
+	CreateTokenWithOptions(ctx context.Context, name string, options model.TokenCreateOptions) (model.TokenCreateResponse, error)
+	// RotateToken rotates a token value and revokes the previous one
+	RotateToken(ctx context.Context, name string) (model.TokenCreateResponse, error)
 	// Remove a Token
 	RemoveToken(ctx context.Context, name string) error
 	// Get Full Information about Current API Token
@@ -217,15 +217,34 @@ func (c *ReductClient) GetToken(ctx context.Context, name string) (model.Token, 
 	return token, nil
 }
 
-// CreateToken creates a new token.
+// CreateToken creates a new token using compatibility payload with permissions only.
+// Deprecated: Use CreateTokenWithOptions. This method will be removed in v1.22.
 func (c *ReductClient) CreateToken(ctx context.Context, name string, permissions model.TokenPermissions) (string, error) {
-
-	var token tokenInfo
-	err := c.HTTPClient.Post(ctx, fmt.Sprintf("/tokens/%s", name), permissions, &token)
+	resp, err := c.CreateTokenWithOptions(ctx, name, model.TokenCreateOptions{Permissions: permissions})
 	if err != nil {
 		return "", err
 	}
-	return token.Value, nil
+	return resp.Value, nil
+}
+
+// CreateTokenWithOptions creates a new token using API v2 payload.
+func (c *ReductClient) CreateTokenWithOptions(ctx context.Context, name string, options model.TokenCreateOptions) (model.TokenCreateResponse, error) {
+	var token model.TokenCreateResponse
+	err := c.HTTPClient.Post(ctx, fmt.Sprintf("/tokens/%s", name), options, &token)
+	if err != nil {
+		return model.TokenCreateResponse{}, err
+	}
+	return token, nil
+}
+
+// RotateToken rotates a token value and revokes the previous one.
+func (c *ReductClient) RotateToken(ctx context.Context, name string) (model.TokenCreateResponse, error) {
+	var token model.TokenCreateResponse
+	err := c.HTTPClient.Post(ctx, fmt.Sprintf("/tokens/%s/rotate", name), struct{}{}, &token)
+	if err != nil {
+		return model.TokenCreateResponse{}, err
+	}
+	return token, nil
 }
 
 // RemoveToken removes a token.

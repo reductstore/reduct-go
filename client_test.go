@@ -309,33 +309,62 @@ func TestBucketRemoveRecord(t *testing.T) {
 }
 
 func TestTokenAPI(t *testing.T) {
+	ctx := context.Background()
 	tokenName := "test-token"
-	teardownToken(tokenName)
+	teardownToken(ctx, tokenName)
 	t.Run("Create Token", func(t *testing.T) {
-		token, err := client.CreateToken(context.Background(), tokenName, model.TokenPermissions{
+		token, err := client.CreateToken(ctx, tokenName, model.TokenPermissions{
 			FullAccess: true,
 		})
 		assert.NoError(t, err)
 		assert.NotEmpty(t, token)
 	})
+	optionsTokenName := getRandomBucketName()
+	t.Run("Create Token With Options", func(t *testing.T) {
+		skipVersingLower(ctx, t, "1.19.0")
+		teardownToken(ctx, optionsTokenName)
+
+		ttl := uint64(3600)
+		resp, err := client.CreateTokenWithOptions(ctx, optionsTokenName, model.TokenCreateOptions{
+			Permissions: model.TokenPermissions{FullAccess: true},
+			TTL:         &ttl,
+			IPAllowlist: []string{"127.0.0.1"},
+		})
+		assert.NoError(t, err)
+		assert.NotEmpty(t, resp.Value)
+		assert.NotEmpty(t, resp.CreatedAt)
+
+		token, err := client.GetToken(ctx, optionsTokenName)
+		assert.NoError(t, err)
+		assert.Equal(t, &ttl, token.TTL)
+		assert.Equal(t, []string{"127.0.0.1"}, token.IPAllowlist)
+	})
 	t.Run("Get Token", func(t *testing.T) {
-		token, err := client.GetToken(context.Background(), tokenName)
+		token, err := client.GetToken(ctx, tokenName)
 		assert.NoError(t, err)
 		assert.NotEmpty(t, token)
 	})
+	t.Run("Rotate Token", func(t *testing.T) {
+		skipVersingLower(ctx, t, "1.19.0")
+		resp, err := client.RotateToken(ctx, tokenName)
+		assert.NoError(t, err)
+		assert.NotEmpty(t, resp.Value)
+		assert.NotEmpty(t, resp.CreatedAt)
+	})
 
 	t.Run("Get Current Token", func(t *testing.T) {
-		token, err := client.GetCurrentToken(context.Background())
+		token, err := client.GetCurrentToken(ctx)
 		assert.NoError(t, err)
 		assert.NotEmpty(t, token)
 	})
 	t.Run("Remove Token", func(t *testing.T) {
-		err := client.RemoveToken(context.Background(), tokenName)
+		err := client.RemoveToken(ctx, tokenName)
 		assert.NoError(t, err)
+		_ = client.RemoveToken(ctx, optionsTokenName) //nolint:errcheck // cleanup
 	})
 	// check if the token is removed
 	t.Run("Check if Token is Removed", func(t *testing.T) {
-		_, err := client.GetToken(context.Background(), tokenName)
+		_, err := client.GetToken(ctx, tokenName)
 		assert.Error(t, err)
 	})
 }
@@ -529,6 +558,6 @@ func TestReductStoreHealth(t *testing.T) {
 	assert.Equal(t, resp.StatusCode, http.StatusOK)
 }
 
-func teardownToken(tokenName string) {
-	_ = client.RemoveToken(context.Background(), tokenName) //nolint:errcheck // ignore error.
+func teardownToken(ctx context.Context, tokenName string) {
+	_ = client.RemoveToken(ctx, tokenName) //nolint:errcheck // ignore error.
 }
