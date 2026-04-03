@@ -37,6 +37,7 @@ type Client interface {
 	// Show Information about a Token
 	GetToken(ctx context.Context, name string) (model.Token, error)
 	// Create a New Token using compatibility payload with permissions only
+	// Deprecated: Use CreateTokenWithOptions. This method will be removed in v1.22.
 	CreateToken(ctx context.Context, name string, permissions model.TokenPermissions) (string, error)
 	// CreateTokenWithOptions creates a token using API v2 payload (expiry/ttl/ip allowlist)
 	CreateTokenWithOptions(ctx context.Context, name string, options model.TokenCreateOptions) (model.TokenCreateResponse, error)
@@ -217,6 +218,7 @@ func (c *ReductClient) GetToken(ctx context.Context, name string) (model.Token, 
 }
 
 // CreateToken creates a new token using compatibility payload with permissions only.
+// Deprecated: Use CreateTokenWithOptions. This method will be removed in v1.22.
 func (c *ReductClient) CreateToken(ctx context.Context, name string, permissions model.TokenPermissions) (string, error) {
 	resp, err := c.CreateTokenWithOptions(ctx, name, model.TokenCreateOptions{Permissions: permissions})
 	if err != nil {
