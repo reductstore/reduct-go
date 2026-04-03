@@ -311,7 +311,7 @@ func TestBucketRemoveRecord(t *testing.T) {
 func TestTokenAPI(t *testing.T) {
 	ctx := context.Background()
 	tokenName := "test-token"
-	teardownToken(tokenName)
+	teardownToken(ctx, tokenName)
 	t.Run("Create Token", func(t *testing.T) {
 		token, err := client.CreateToken(ctx, tokenName, model.TokenPermissions{
 			FullAccess: true,
@@ -319,10 +319,10 @@ func TestTokenAPI(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotEmpty(t, token)
 	})
+	optionsTokenName := getRandomBucketName()
 	t.Run("Create Token With Options", func(t *testing.T) {
 		skipVersingLower(ctx, t, "1.19.0")
-		optionsTokenName := "test-token-options"
-		teardownToken(optionsTokenName)
+		teardownToken(ctx, optionsTokenName)
 
 		ttl := uint64(3600)
 		resp, err := client.CreateTokenWithOptions(ctx, optionsTokenName, model.TokenCreateOptions{
@@ -360,7 +360,7 @@ func TestTokenAPI(t *testing.T) {
 	t.Run("Remove Token", func(t *testing.T) {
 		err := client.RemoveToken(ctx, tokenName)
 		assert.NoError(t, err)
-		_ = client.RemoveToken(ctx, "test-token-options") //nolint:errcheck // cleanup
+		_ = client.RemoveToken(ctx, optionsTokenName) //nolint:errcheck // cleanup
 	})
 	// check if the token is removed
 	t.Run("Check if Token is Removed", func(t *testing.T) {
@@ -558,6 +558,6 @@ func TestReductStoreHealth(t *testing.T) {
 	assert.Equal(t, resp.StatusCode, http.StatusOK)
 }
 
-func teardownToken(tokenName string) {
-	_ = client.RemoveToken(context.Background(), tokenName) //nolint:errcheck // ignore error.
+func teardownToken(ctx context.Context, tokenName string) {
+	_ = client.RemoveToken(ctx, tokenName) //nolint:errcheck // ignore error.
 }
