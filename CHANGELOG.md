@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add entry attachments API (`WriteAttachments`, `ReadAttachments`, `RemoveAttachments`) with integration tests for API v1.19, [PR-41](https://github.com/reductstore/reduct-go/pull/41)
+- Add token API v2 support: create options (`expires_at`, `ttl`, `ip_allowlist`), token model fields (`last_access`, `is_expired`), and token rotation API helper, [PR-57](https://github.com/reductstore/reduct-go/pull/57)
 
 ### Fixed
 
