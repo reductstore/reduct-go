@@ -813,10 +813,12 @@ type QueryLinkOptions struct {
 	QueryOptions    QueryOptions `json:"query"`
 	RecordEntry     string       `json:"record_entry,omitempty"`
 	RecordTimestamp *int64       `json:"record_timestamp,omitempty"`
-	RecordIndex     int          `json:"index"`
-	ExpireAt        int64        `json:"expire_at"`
-	BaseURL         string       `json:"base_url,omitempty"`
-	fileName        string
+	// Deprecated: Legacy `index` is kept only for backward compatibility.
+	// Use RecordEntry and RecordTimestamp.
+	RecordIndex int    `json:"index"`
+	ExpireAt    int64  `json:"expire_at"`
+	BaseURL     string `json:"base_url,omitempty"`
+	fileName    string
 }
 
 type queryLinkQueryOptions struct {
@@ -849,6 +851,9 @@ func (q *QueryLinkOptionsBuilder) WithQueryOptions(queryOptions QueryOptions) *Q
 	return q
 }
 
+// WithRecordIndex sets the legacy index selector for query links.
+//
+// Deprecated: Use WithRecordEntry and WithRecordTimestamp.
 func (q *QueryLinkOptionsBuilder) WithRecordIndex(recordIndex int) *QueryLinkOptionsBuilder {
 	q.options.RecordIndex = recordIndex
 	return q

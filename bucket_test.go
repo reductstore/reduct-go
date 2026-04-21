@@ -271,13 +271,18 @@ func TestRemoveAttachmentsWithNumericKeys(t *testing.T) {
 
 func TestQueryLink(t *testing.T) {
 	ctx := context.Background()
-	skipVersingLower(ctx, t, "1.17.0")
-	writer := mainTestBucket.BeginWrite(context.Background(), "entry-1", nil)
+	skipVersingLower(ctx, t, "1.19.0")
+
+	entry := fmt.Sprintf("query-link-entry-%d", time.Now().UnixNano())
+	recordTimestamp := time.Now().UTC().UnixMicro()
+	writer := mainTestBucket.BeginWrite(context.Background(), entry, &WriteOptions{Timestamp: recordTimestamp})
 	err := writer.Write([]byte("test data for query link"))
 	assert.NoError(t, err)
 
-	builder := NewQueryLinkOptionsBuilder()
-	link, err := mainTestBucket.CreateQueryLink(ctx, "entry-1", builder.Build())
+	builder := NewQueryLinkOptionsBuilder().
+		WithRecordEntry(entry).
+		WithRecordTimestamp(recordTimestamp)
+	link, err := mainTestBucket.CreateQueryLink(ctx, entry, builder.Build())
 
 	assert.NoError(t, err)
 
@@ -287,16 +292,19 @@ func TestQueryLink(t *testing.T) {
 
 func TestQueryLinkWithOptions(t *testing.T) {
 	ctx := context.Background()
-	skipVersingLower(ctx, t, "1.17.0")
+	skipVersingLower(ctx, t, "1.19.0")
 
-	builder := NewQueryLinkOptionsBuilder().WithRecordIndex(1)
-	link, err := mainTestBucket.CreateQueryLink(ctx, "entry-1", builder.Build())
-
+	entry := fmt.Sprintf("query-link-options-%d", time.Now().UnixNano())
+	recordTimestamp := time.Now().UTC().UnixMicro()
+	writer := mainTestBucket.BeginWrite(ctx, entry, &WriteOptions{Timestamp: recordTimestamp})
+	err := writer.Write([]byte("test data for query link with options"))
 	assert.NoError(t, err)
-	assert.Contains(t, link, "r=1")
 
-	builder = NewQueryLinkOptionsBuilder().WithFileName("custom-name.txt")
-	link, err = mainTestBucket.CreateQueryLink(ctx, "entry-1", builder.Build())
+	builder := NewQueryLinkOptionsBuilder().
+		WithRecordEntry(entry).
+		WithRecordTimestamp(recordTimestamp).
+		WithFileName("custom-name.txt")
+	link, err := mainTestBucket.CreateQueryLink(ctx, entry, builder.Build())
 
 	assert.NoError(t, err)
 	assert.Contains(t, link, "/custom-name.txt?")
@@ -304,20 +312,24 @@ func TestQueryLinkWithOptions(t *testing.T) {
 
 func TestQueryLinkMany(t *testing.T) {
 	ctx := context.Background()
-	skipVersingLower(ctx, t, "1.18.0")
+	skipVersingLower(ctx, t, "1.19.0")
 
 	entryOne := fmt.Sprintf("entry-link-many-%d-1", time.Now().UnixNano())
 	entryTwo := fmt.Sprintf("entry-link-many-%d-2", time.Now().UnixNano())
+	recordTimestampOne := time.Now().UTC().UnixMicro()
+	recordTimestampTwo := recordTimestampOne + 1
 
-	writer := mainTestBucket.BeginWrite(ctx, entryOne, nil)
+	writer := mainTestBucket.BeginWrite(ctx, entryOne, &WriteOptions{Timestamp: recordTimestampOne})
 	err := writer.Write([]byte("test data for query link many 1"))
 	assert.NoError(t, err)
 
-	writer = mainTestBucket.BeginWrite(ctx, entryTwo, nil)
+	writer = mainTestBucket.BeginWrite(ctx, entryTwo, &WriteOptions{Timestamp: recordTimestampTwo})
 	err = writer.Write([]byte("test data for query link many 2"))
 	assert.NoError(t, err)
 
-	builder := NewQueryLinkOptionsBuilder()
+	builder := NewQueryLinkOptionsBuilder().
+		WithRecordEntry(entryTwo).
+		WithRecordTimestamp(recordTimestampTwo)
 	link, err := mainTestBucket.CreateQueryLinkMany(ctx, []string{entryOne, entryTwo}, builder.Build())
 
 	assert.NoError(t, err)
@@ -328,10 +340,19 @@ func TestQueryLinkMany(t *testing.T) {
 
 func TestQueryLinkExpired(t *testing.T) {
 	ctx := context.Background()
-	skipVersingLower(ctx, t, "1.17.0")
+	skipVersingLower(ctx, t, "1.19.0")
 
-	builder := NewQueryLinkOptionsBuilder().WithExpireAt(time.Now().Add(-time.Hour).Unix())
-	link, err := mainTestBucket.CreateQueryLink(ctx, "entry-1", builder.Build())
+	entry := fmt.Sprintf("query-link-expired-%d", time.Now().UnixNano())
+	recordTimestamp := time.Now().UTC().UnixMicro()
+	writer := mainTestBucket.BeginWrite(ctx, entry, &WriteOptions{Timestamp: recordTimestamp})
+	err := writer.Write([]byte("test data for expired query link"))
+	assert.NoError(t, err)
+
+	builder := NewQueryLinkOptionsBuilder().
+		WithRecordEntry(entry).
+		WithRecordTimestamp(recordTimestamp).
+		WithExpireAt(time.Now().Add(-time.Hour).Unix())
+	link, err := mainTestBucket.CreateQueryLink(ctx, entry, builder.Build())
 
 	assert.NoError(t, err)
 

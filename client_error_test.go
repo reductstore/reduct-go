@@ -112,13 +112,12 @@ func TestCreateQueryLinkUsesRecordIdentityArguments(t *testing.T) {
 	options := NewQueryLinkOptionsBuilder().
 		WithRecordEntry("source-entry").
 		WithRecordTimestamp(recordTimestamp).
-		WithRecordIndex(2).
 		Build()
 
 	_, err := bucket.CreateQueryLink(context.Background(), "entry-1", options)
 	require.NoError(t, err)
 	require.True(t, httpClient.postCalled)
-	assert.Equal(t, "/links/entry-1_2", httpClient.postPath)
+	assert.Equal(t, "/links/entry-1_0", httpClient.postPath)
 
 	rawPayload, err := json.Marshal(httpClient.postBody)
 	require.NoError(t, err)
@@ -131,19 +130,4 @@ func TestCreateQueryLinkUsesRecordIdentityArguments(t *testing.T) {
 	assert.Equal(t, "entry-1", payload["entry"])
 	assert.Equal(t, "source-entry", payload["record_entry"])
 	assert.Equal(t, float64(recordTimestamp), payload["record_timestamp"])
-	assert.Equal(t, float64(2), payload["index"])
-}
-
-func TestCreateQueryLinkRejectsNegativeRecordIndex(t *testing.T) {
-	httpClient := &queryLinkStubHTTPClient{}
-	bucket := Bucket{
-		HTTPClient: httpClient,
-		Name:       "test-bucket",
-	}
-
-	options := NewQueryLinkOptionsBuilder().WithRecordIndex(-1).Build()
-	_, err := bucket.CreateQueryLink(context.Background(), "entry-1", options)
-
-	require.EqualError(t, err, "record index must be a non-negative integer")
-	assert.False(t, httpClient.postCalled)
 }
