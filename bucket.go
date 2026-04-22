@@ -808,13 +808,17 @@ func firstRecordBatchError(errs RecordBatchErrorMap) error {
 }
 
 type QueryLinkOptions struct {
-	Bucket       string       `json:"bucket"`
-	Entry        string       `json:"entry"`
-	QueryOptions QueryOptions `json:"query"`
-	RecordIndex  int          `json:"index"`
-	ExpireAt     int64        `json:"expire_at"`
-	BaseURL      string       `json:"base_url,omitempty"`
-	fileName     string
+	Bucket          string       `json:"bucket"`
+	Entry           string       `json:"entry"`
+	QueryOptions    QueryOptions `json:"query"`
+	RecordEntry     string       `json:"record_entry,omitempty"`
+	RecordTimestamp *int64       `json:"record_timestamp,omitempty"`
+	// Deprecated: Legacy `index` is kept only for backward compatibility.
+	// Use RecordEntry and RecordTimestamp.
+	RecordIndex int    `json:"index"`
+	ExpireAt    int64  `json:"expire_at"`
+	BaseURL     string `json:"base_url,omitempty"`
+	fileName    string
 }
 
 type queryLinkQueryOptions struct {
@@ -847,8 +851,21 @@ func (q *QueryLinkOptionsBuilder) WithQueryOptions(queryOptions QueryOptions) *Q
 	return q
 }
 
+// WithRecordIndex sets the legacy index selector for query links.
+//
+// Deprecated: Use WithRecordEntry and WithRecordTimestamp.
 func (q *QueryLinkOptionsBuilder) WithRecordIndex(recordIndex int) *QueryLinkOptionsBuilder {
 	q.options.RecordIndex = recordIndex
+	return q
+}
+
+func (q *QueryLinkOptionsBuilder) WithRecordEntry(recordEntry string) *QueryLinkOptionsBuilder {
+	q.options.RecordEntry = recordEntry
+	return q
+}
+
+func (q *QueryLinkOptionsBuilder) WithRecordTimestamp(recordTimestamp int64) *QueryLinkOptionsBuilder {
+	q.options.RecordTimestamp = &recordTimestamp
 	return q
 }
 
@@ -905,11 +922,16 @@ func (b *Bucket) CreateQueryLinkMany(ctx context.Context, entries []string, opti
 }
 
 func (b *Bucket) createQueryLink(ctx context.Context, entry string, entries []string, options QueryLinkOptions) (string, error) {
+	if options.RecordIndex < 0 {
+		return "", fmt.Errorf("record index must be a non-negative integer")
+	}
+
 	options.Bucket = b.Name
 	options.Entry = entry
 	if options.QueryOptions.QueryType == "" {
 		options.QueryOptions.QueryType = QueryTypeQuery
 	}
+
 	if options.fileName == "" {
 		fileEntry := entry
 		if fileEntry == "" {
@@ -921,6 +943,8 @@ func (b *Bucket) createQueryLink(ctx context.Context, entry string, entries []st
 	payload := struct {
 		Bucket      string                `json:"bucket"`
 		Entry       string                `json:"entry"`
+		RecordEntry string                `json:"record_entry,omitempty"`
+		RecordTime  *int64                `json:"record_timestamp,omitempty"`
 		Query       queryLinkQueryOptions `json:"query"`
 		RecordIndex int                   `json:"index"`
 		ExpireAt    int64                 `json:"expire_at"`
@@ -928,6 +952,8 @@ func (b *Bucket) createQueryLink(ctx context.Context, entry string, entries []st
 	}{
 		Bucket:      options.Bucket,
 		Entry:       options.Entry,
+		RecordEntry: options.RecordEntry,
+		RecordTime:  options.RecordTimestamp,
 		Query:       queryLinkQueryOptions{QueryOptions: options.QueryOptions, Entries: entries},
 		RecordIndex: options.RecordIndex,
 		ExpireAt:    options.ExpireAt,
