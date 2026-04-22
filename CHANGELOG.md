@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 1.19.1 - 2026-04-22
+
 ### Fixed
 
 - Align query link payload with record identity API by forwarding `record_entry` and `record_timestamp` arguments while preserving legacy `index`, [PR-60](https://github.com/reductstore/reduct-go/pull/60)
