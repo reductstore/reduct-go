@@ -14,6 +14,9 @@ on:
       - README.md
       - CHANGELOG.md
 
+permissions:
+  contents: read
+
 jobs:
   formatAndLint:
     runs-on: ubuntu-latest
@@ -92,6 +95,8 @@ jobs:
     needs: [run_tests, formatAndLint, check_tag]
     runs-on: ubuntu-latest
     if: ${{ startsWith(github.ref, 'refs/tags/v') }}
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
       - name: Set up Go
