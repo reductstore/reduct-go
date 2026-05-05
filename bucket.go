@@ -651,7 +651,7 @@ func (b *Bucket) WriteAttachments(ctx context.Context, entry string, attachments
 	if len(contentType) > 0 && contentType[0] != "" {
 		ct = contentType[0]
 	}
-	isJSON := isJsonContentType(ct)
+	isJSON := isJSONContentType(ct)
 
 	metaEntry := fmt.Sprintf("%s/$meta", entry)
 	ts := time.Now().UTC().UnixMicro()
@@ -729,7 +729,7 @@ func (b *Bucket) ReadAttachments(ctx context.Context, entry string) (map[string]
 		}
 
 		var payload any
-		if isJsonContentType(record.ContentType()) {
+		if isJSONContentType(record.ContentType()) {
 			if err := json.Unmarshal(content, &payload); err != nil {
 				return nil, fmt.Errorf("failed to decode attachment %q: %w", fmt.Sprint(key), err)
 			}
@@ -831,7 +831,7 @@ func firstRecordBatchError(errs RecordBatchErrorMap) error {
 	return nil
 }
 
-func isJsonContentType(contentType string) bool {
+func isJSONContentType(contentType string) bool {
 	ct := strings.TrimSpace(strings.SplitN(contentType, ";", 2)[0])
 	lower := strings.ToLower(ct)
 	return lower == "application/json" || lower == "text/json" || strings.HasSuffix(lower, "+json")
