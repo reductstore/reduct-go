@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
-### Added
-
-- Support non-JSON content types in `WriteAttachments` and `ReadAttachments`, [PR-65](https://github.com/reductstore/reduct-go/pull/65)
-
 ### Changed
 
 - Pin third-party GitHub Actions in CI workflows to immutable commit SHAs, [PR-66](https://github.com/reductstore/reduct-go/pull/66)

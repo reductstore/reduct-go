@@ -2,7 +2,6 @@ package reductgo
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -639,7 +638,7 @@ func (b *Bucket) Update(ctx context.Context, entry string, ts int64, labels Labe
 //   - ctx: Context for cancellation and timeout control
 //   - entry: Name of the entry
 //   - attachments: Attachment key/value payloads
-func (b *Bucket) WriteAttachments(ctx context.Context, entry string, attachments map[string]any, contentType ...string) error {
+func (b *Bucket) WriteAttachments(ctx context.Context, entry string, attachments map[string]any) error {
 	if entry == "" {
 		return fmt.Errorf("entry name is required for attachments")
 	}
@@ -647,36 +646,17 @@ func (b *Bucket) WriteAttachments(ctx context.Context, entry string, attachments
 		return nil
 	}
 
-	ct := "application/json"
-	if len(contentType) > 0 && contentType[0] != "" {
-		ct = contentType[0]
-	}
-	isJSON := isJSONContentType(ct)
-
 	metaEntry := fmt.Sprintf("%s/$meta", entry)
 	ts := time.Now().UTC().UnixMicro()
 
 	batch := b.BeginWriteRecordBatch(ctx)
 	for key, payload := range attachments {
-		var data []byte
-		var err error
-		if isJSON {
-			data, err = json.Marshal(payload)
-			if err != nil {
-				return fmt.Errorf("failed to marshal attachment %q: %w", key, err)
-			}
-		} else {
-			b64, ok := payload.(string)
-			if !ok {
-				return fmt.Errorf("non-JSON attachment %q must be a base64-encoded string", key)
-			}
-			data, err = base64.StdEncoding.DecodeString(b64)
-			if err != nil {
-				return fmt.Errorf("failed to decode base64 for attachment %q: %w", key, err)
-			}
+		data, err := json.Marshal(payload)
+		if err != nil {
+			return fmt.Errorf("failed to marshal attachment %q: %w", key, err)
 		}
 
-		batch.Add(metaEntry, ts, data, ct, LabelMap{"key": key})
+		batch.Add(metaEntry, ts, data, "application/json", LabelMap{"key": key})
 		ts++
 	}
 
@@ -729,12 +709,8 @@ func (b *Bucket) ReadAttachments(ctx context.Context, entry string) (map[string]
 		}
 
 		var payload any
-		if isJSONContentType(record.ContentType()) {
-			if err := json.Unmarshal(content, &payload); err != nil {
-				return nil, fmt.Errorf("failed to decode attachment %q: %w", fmt.Sprint(key), err)
-			}
-		} else {
-			payload = base64.StdEncoding.EncodeToString(content)
+		if err := json.Unmarshal(content, &payload); err != nil {
+			return nil, fmt.Errorf("failed to decode attachment %q: %w", fmt.Sprint(key), err)
 		}
 
 		attachments[attachmentKey] = payload
@@ -829,12 +805,6 @@ func firstRecordBatchError(errs RecordBatchErrorMap) error {
 		}
 	}
 	return nil
-}
-
-func isJSONContentType(contentType string) bool {
-	ct := strings.TrimSpace(strings.SplitN(contentType, ";", 2)[0])
-	lower := strings.ToLower(ct)
-	return lower == "application/json" || lower == "text/json" || strings.HasSuffix(lower, "+json")
 }
 
 type QueryLinkOptions struct {
