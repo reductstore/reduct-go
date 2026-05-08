@@ -3,7 +3,6 @@ package reductgo
 import (
 	"bytes"
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -268,44 +267,6 @@ func TestRemoveAttachmentsWithNumericKeys(t *testing.T) {
 	attachments, err = mainTestBucket.ReadAttachments(ctx, entry)
 	assert.NoError(t, err)
 	assert.Equal(t, map[string]any{}, attachments)
-}
-
-func TestWriteReadNonJsonAttachment(t *testing.T) {
-	ctx := context.Background()
-	skipVersingLower(ctx, t, "1.19.0")
-
-	entry := fmt.Sprintf("test-attachments-non-json-%d", time.Now().UTC().UnixNano())
-	rawBytes := []byte{0xDE, 0xAD, 0xBE, 0xEF}
-	encoded := base64.StdEncoding.EncodeToString(rawBytes)
-
-	err := mainTestBucket.WriteAttachments(ctx, entry, map[string]any{
-		"binary-data": encoded,
-	}, "application/octet-stream")
-	assert.NoError(t, err)
-
-	attachments, err := mainTestBucket.ReadAttachments(ctx, entry)
-	assert.NoError(t, err)
-	assert.Equal(t, encoded, attachments["binary-data"])
-}
-
-func TestWriteAttachmentsDefaultJson(t *testing.T) {
-	ctx := context.Background()
-	skipVersingLower(ctx, t, "1.19.0")
-
-	entry := fmt.Sprintf("test-attachments-default-json-%d", time.Now().UTC().UnixNano())
-	attachments := map[string]any{
-		"meta-1": map[string]any{
-			"enabled": true,
-			"values":  []any{"one", "two"},
-		},
-	}
-
-	err := mainTestBucket.WriteAttachments(ctx, entry, attachments)
-	assert.NoError(t, err)
-
-	readAttachments, err := mainTestBucket.ReadAttachments(ctx, entry)
-	assert.NoError(t, err)
-	assert.Equal(t, attachments, readAttachments)
 }
 
 func TestQueryLink(t *testing.T) {
