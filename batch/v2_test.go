@@ -127,3 +127,19 @@ func TestFetchAndParseV2_ContinueQueryOnEmptyBatch(t *testing.T) {
 
 	assert.GreaterOrEqual(t, atomic.LoadInt32(&requests), int32(2), "expected at least two read requests")
 }
+
+func TestFetchAndParseV2_StreamingError(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Reduct-API", "v1.3")
+		w.Header().Set("X-Reduct-Error", `Invalid SQL: SQL error: ParserError("bad query")`)
+		w.WriteHeader(http.StatusUnprocessableEntity)
+	}))
+	defer server.Close()
+
+	client := httpclient.NewHTTPClient(httpclient.Option{BaseURL: server.URL, Timeout: time.Second})
+	ctx := context.Background()
+
+	_, err := FetchAndParseV2(ctx, client, "bucket", 1, false, time.Second, false)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "Invalid SQL")
+}
