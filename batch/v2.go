@@ -40,12 +40,44 @@ type parsedHeader struct {
 }
 
 // FetchAndParseV2 reads records for a query ID using Batch Protocol v2.
+// The first batch is fetched synchronously so that hard errors are 
+// returned immediately as a normal error rather than silently swallowed 
+// inside the streaming goroutine.
 func FetchAndParseV2(ctx context.Context, client httpclient.HTTPClient, bucketName string, id int64, continueQuery bool, pollInterval time.Duration, head bool) (<-chan *Record, error) {
-	records := make(chan *Record, 100)
+	// Fetch the first batch synchronously.
+	firstBatch, err := readBatchedRecordsV2(ctx, client, bucketName, id, head)
+	if err != nil {
+		var apiErr model.APIError
+		if errors.As(err, &apiErr) && apiErr.Status == http.StatusNoContent {
+			if !continueQuery {
+				ch := make(chan *Record)
+				close(ch)
+				return ch, nil
+			}
+			// continueQuery + no data yet: start goroutine in poll mode.
+			firstBatch = nil
+		} else {
+			return nil, err
+		}
+	}
 
+	records := make(chan *Record, 100)
 	go func() {
 		defer close(records)
 
+		// Drain the pre-fetched first batch.
+		for rec := range firstBatch {
+			select {
+			case <-ctx.Done():
+				return
+			case records <- rec:
+				if rec.Last {
+					return
+				}
+			}
+		}
+
+		// Stream subsequent batches.
 		for {
 			record, err := readBatchedRecordsV2(ctx, client, bucketName, id, head)
 			if err != nil {

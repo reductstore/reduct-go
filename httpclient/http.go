@@ -577,7 +577,7 @@ func (c *httpClient) Do(req *http.Request) (*http.Response, error) {
 	}
 
 	if resp.StatusCode >= 300 {
-		return resp, model.APIError{
+		return resp, &model.APIError{
 			Status:  resp.StatusCode,
 			Message: reductError,
 		}

@@ -29,11 +29,38 @@ type Record struct {
 }
 
 // FetchAndParse reads records for a query ID using Batch Protocol v1.
+// The first batch is fetched synchronously so that hard errors are returned
+// immediately as a normal error rather than silently swallowed.
 func FetchAndParse(ctx context.Context, client httpclient.HTTPClient, bucketName, entry string, id int64, continueQuery bool, pollInterval time.Duration, head bool) (<-chan *Record, error) {
-	records := make(chan *Record, 100)
+	firstBatch, err := readBatchedRecords(ctx, client, bucketName, entry, id, head)
+	if err != nil {
+		var apiErr model.APIError
+		if errors.As(err, &apiErr) && apiErr.Status == http.StatusNoContent {
+			if !continueQuery {
+				ch := make(chan *Record)
+				close(ch)
+				return ch, nil
+			}
+			firstBatch = nil
+		} else {
+			return nil, err
+		}
+	}
 
+	records := make(chan *Record, 100)
 	go func() {
 		defer close(records)
+
+		for rec := range firstBatch {
+			select {
+			case <-ctx.Done():
+				return
+			case records <- rec:
+				if rec.Last {
+					return
+				}
+			}
+		}
 
 		for {
 			record, err := readBatchedRecords(ctx, client, bucketName, entry, id, head)
