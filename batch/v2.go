@@ -40,8 +40,8 @@ type parsedHeader struct {
 }
 
 // FetchAndParseV2 reads records for a query ID using Batch Protocol v2.
-// The first batch is fetched synchronously so that hard errors are 
-// returned immediately as a normal error rather than silently swallowed 
+// The first batch is fetched synchronously so that hard errors are
+// returned immediately as a normal error rather than silently swallowed
 // inside the streaming goroutine.
 func FetchAndParseV2(ctx context.Context, client httpclient.HTTPClient, bucketName string, id int64, continueQuery bool, pollInterval time.Duration, head bool) (<-chan *Record, error) {
 	// Fetch the first batch synchronously.

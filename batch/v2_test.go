@@ -129,7 +129,7 @@ func TestFetchAndParseV2_ContinueQueryOnEmptyBatch(t *testing.T) {
 }
 
 func TestFetchAndParseV2_StreamingError(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("X-Reduct-API", "v1.3")
 		w.Header().Set("X-Reduct-Error", `Invalid SQL: SQL error: ParserError("bad query")`)
 		w.WriteHeader(http.StatusUnprocessableEntity)
