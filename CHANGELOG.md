@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+- Add lifecycle policy API support, [PR-69](https://github.com/reductstore/reduct-go/pull/69)
+
 ### Changed
 
 - Pin third-party GitHub Actions in CI workflows to immutable commit SHAs, [PR-66](https://github.com/reductstore/reduct-go/pull/66)
