@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Fetch the first record batch synchronously in `FetchAndParseV2` and `FetchAndParse` so streaming errors are returned as a normal error instead of being silently dropped, [PR-68](https://github.com/reductstore/reduct-go/pull/68)
+- Fetch the first record batch synchronously so hard errors (e.g. invalid query) are returned immediately as a normal error; add `QueryResult.Err()` to surface any error that occurs in subsequent batches, [PR-68](https://github.com/reductstore/reduct-go/pull/68)
 
 ### Changed
 

@@ -106,7 +106,7 @@ func TestFetchAndParseV2_ContinueQueryOnEmptyBatch(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	records, err := FetchAndParseV2(ctx, client, "bucket", 1, true, 10*time.Millisecond, false)
+	records, _, err := FetchAndParseV2(ctx, client, "bucket", 1, true, 10*time.Millisecond, false)
 	require.NoError(t, err)
 
 	select {
@@ -128,7 +128,7 @@ func TestFetchAndParseV2_ContinueQueryOnEmptyBatch(t *testing.T) {
 	assert.GreaterOrEqual(t, atomic.LoadInt32(&requests), int32(2), "expected at least two read requests")
 }
 
-func TestFetchAndParseV2_StreamingError(t *testing.T) {
+func TestFetchAndParseV2_FirstBatchError(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("X-Reduct-API", "v1.3")
 		w.Header().Set("X-Reduct-Error", `Invalid SQL: SQL error: ParserError("bad query")`)
@@ -137,9 +137,45 @@ func TestFetchAndParseV2_StreamingError(t *testing.T) {
 	defer server.Close()
 
 	client := httpclient.NewHTTPClient(httpclient.Option{BaseURL: server.URL, Timeout: time.Second})
-	ctx := context.Background()
 
-	_, err := FetchAndParseV2(ctx, client, "bucket", 1, false, time.Second, false)
+	_, _, err := FetchAndParseV2(context.Background(), client, "bucket", 1, false, time.Second, false)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "Invalid SQL")
+}
+
+func TestFetchAndParseV2_SubsequentBatchError(t *testing.T) {
+	var requests int32
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("X-Reduct-API", "v1.3")
+
+		if atomic.AddInt32(&requests, 1) == 1 {
+			// First batch: one record, not last
+			w.Header().Set("x-reduct-entries", "entry")
+			w.Header().Set("x-reduct-start-ts", "100")
+			w.Header().Set("x-reduct-0-0", "5,text/plain")
+			w.Header().Set("x-reduct-last", "false")
+			w.WriteHeader(http.StatusOK)
+			_, err := w.Write([]byte("hello"))
+			require.NoError(t, err)
+		} else {
+			// Second batch: server error
+			w.Header().Set("X-Reduct-Error", "mid-stream failure")
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+	}))
+	defer server.Close()
+
+	client := httpclient.NewHTTPClient(httpclient.Option{BaseURL: server.URL, Timeout: time.Second})
+
+	records, errCh, err := FetchAndParseV2(context.Background(), client, "bucket", 1, false, time.Second, false)
+	require.NoError(t, err)
+
+	for rec := range records {
+		_ = rec
+	}
+
+	err = <-errCh
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "mid-stream failure")
 }

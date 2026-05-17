@@ -381,6 +381,7 @@ type ioQueryRequest struct {
 
 type QueryResult struct {
 	records <-chan *ReadableRecord
+	errCh   <-chan error
 }
 
 func (q *QueryResult) Records() <-chan *ReadableRecord {
@@ -390,6 +391,20 @@ func (q *QueryResult) Records() <-chan *ReadableRecord {
 		return ch
 	}
 	return q.records
+}
+
+// Err returns any error that occurred during streaming after the first batch.
+// Call it after the Records() channel has been fully drained.
+func (q *QueryResult) Err() error {
+	if q.errCh == nil {
+		return nil
+	}
+	select {
+	case err := <-q.errCh:
+		return err
+	default:
+		return nil
+	}
 }
 
 // Query queries records for a time interval and returns them through a channel
