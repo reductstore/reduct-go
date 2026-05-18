@@ -153,7 +153,7 @@ func (c *ReductClient) GetBuckets(ctx context.Context) ([]model.BucketInfo, erro
 func (c *ReductClient) GetBucket(ctx context.Context, name string) (Bucket, error) {
 	err := c.HTTPClient.Get(ctx, fmt.Sprintf(`/b/%s`, name), nil)
 	if err != nil {
-		var apiErr model.APIError
+		var apiErr *model.APIError
 		ok := errors.As(err, &apiErr)
 
 		if ok && apiErr.Status == 404 {
@@ -185,7 +185,7 @@ func (c *ReductClient) CreateOrGetBucket(ctx context.Context, name string, setti
 
 	err := c.HTTPClient.Post(ctx, fmt.Sprintf("/b/%s", name), settings, nil)
 	if err != nil {
-		apiErr := model.APIError{}
+		var apiErr *model.APIError
 		if errors.As(err, &apiErr) {
 			if apiErr.Status == 409 {
 				return c.GetBucket(ctx, name)

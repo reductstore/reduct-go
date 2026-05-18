@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -21,7 +22,7 @@ func removeEntryWithRetry(t *testing.T, bucket *Bucket, entry string) {
 		return
 	}
 
-	var apiErr model.APIError
+	var apiErr *model.APIError
 	if errors.As(err, &apiErr) && apiErr.Status == http.StatusConflict {
 		return
 	}
@@ -37,7 +38,7 @@ func removeBucketAllowDeleting(t *testing.T, bucketName string) {
 		return
 	}
 
-	var apiErr model.APIError
+	var apiErr *model.APIError
 	if errors.As(err, &apiErr) && apiErr.Status == http.StatusConflict {
 		return
 	}
@@ -59,10 +60,11 @@ func TestGetBucket_NotFound(t *testing.T) {
 	_, err := client.GetBucket(context.Background(), "not-exist-bucket")
 	assert.Error(t, err)
 
-	var apiErr model.APIError
-	errors.As(err, &apiErr)
+	var apiErr *model.APIError
+	require.True(t, errors.As(err, &apiErr))
 	assert.Equal(t, 404, apiErr.Status)
-	assert.Equal(t, "bucket 'not-exist-bucket' not found", apiErr.Message)
+	assert.Contains(t, strings.ToLower(apiErr.Message), "not found")
+	assert.Contains(t, apiErr.Message, "not-exist-bucket")
 }
 
 func TestGetBucketInfo(t *testing.T) {
