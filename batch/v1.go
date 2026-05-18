@@ -29,11 +29,43 @@ type Record struct {
 }
 
 // FetchAndParse reads records for a query ID using Batch Protocol v1.
-func FetchAndParse(ctx context.Context, client httpclient.HTTPClient, bucketName, entry string, id int64, continueQuery bool, pollInterval time.Duration, head bool) (<-chan *Record, error) {
-	records := make(chan *Record, 100)
+// The first batch is fetched synchronously so that hard errors are returned
+// immediately as a normal error. Any error in subsequent batches is sent to
+// the returned error channel, which is closed when streaming ends.
+func FetchAndParse(ctx context.Context, client httpclient.HTTPClient, bucketName, entry string, id int64, continueQuery bool, pollInterval time.Duration, head bool) (<-chan *Record, <-chan error, error) { //nolint:gocritic // directional channels cannot be named returns
+	firstBatch, err := readBatchedRecords(ctx, client, bucketName, entry, id, head)
+	if err != nil {
+		var apiErr model.APIError
+		if errors.As(err, &apiErr) && apiErr.Status == http.StatusNoContent {
+			if !continueQuery {
+				ch := make(chan *Record)
+				close(ch)
+				errCh := make(chan error)
+				close(errCh)
+				return ch, errCh, nil
+			}
+			firstBatch = nil
+		} else {
+			return nil, nil, err
+		}
+	}
 
+	records := make(chan *Record, 100)
+	errCh := make(chan error, 1)
 	go func() {
+		defer close(errCh)
 		defer close(records)
+
+		for rec := range firstBatch {
+			select {
+			case <-ctx.Done():
+				return
+			case records <- rec:
+				if rec.Last {
+					return
+				}
+			}
+		}
 
 		for {
 			record, err := readBatchedRecords(ctx, client, bucketName, entry, id, head)
@@ -50,6 +82,7 @@ func FetchAndParse(ctx context.Context, client httpclient.HTTPClient, bucketName
 					}
 					return
 				}
+				errCh <- err
 				return
 			}
 
@@ -70,7 +103,7 @@ func FetchAndParse(ctx context.Context, client httpclient.HTTPClient, bucketName
 		}
 	}()
 
-	return records, nil
+	return records, errCh, nil
 }
 
 // CSVRowResult represents the parsed result of a CSV row.

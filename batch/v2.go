@@ -40,11 +40,43 @@ type parsedHeader struct {
 }
 
 // FetchAndParseV2 reads records for a query ID using Batch Protocol v2.
-func FetchAndParseV2(ctx context.Context, client httpclient.HTTPClient, bucketName string, id int64, continueQuery bool, pollInterval time.Duration, head bool) (<-chan *Record, error) {
-	records := make(chan *Record, 100)
+// The first batch is fetched synchronously so that hard errors (e.g. invalid SQL)
+// are returned immediately as a normal error. Any error occurring in subsequent
+// batches is sent to the returned error channel, which is closed when streaming ends.
+func FetchAndParseV2(ctx context.Context, client httpclient.HTTPClient, bucketName string, id int64, continueQuery bool, pollInterval time.Duration, head bool) (<-chan *Record, <-chan error, error) { //nolint:gocritic // directional channels cannot be named returns
+	firstBatch, err := readBatchedRecordsV2(ctx, client, bucketName, id, head)
+	if err != nil {
+		var apiErr model.APIError
+		if errors.As(err, &apiErr) && apiErr.Status == http.StatusNoContent {
+			if !continueQuery {
+				ch := make(chan *Record)
+				close(ch)
+				errCh := make(chan error)
+				close(errCh)
+				return ch, errCh, nil
+			}
+			firstBatch = nil
+		} else {
+			return nil, nil, err
+		}
+	}
 
+	records := make(chan *Record, 100)
+	errCh := make(chan error, 1)
 	go func() {
+		defer close(errCh)
 		defer close(records)
+
+		for rec := range firstBatch {
+			select {
+			case <-ctx.Done():
+				return
+			case records <- rec:
+				if rec.Last {
+					return
+				}
+			}
+		}
 
 		for {
 			record, err := readBatchedRecordsV2(ctx, client, bucketName, id, head)
@@ -61,6 +93,7 @@ func FetchAndParseV2(ctx context.Context, client httpclient.HTTPClient, bucketNa
 					}
 					return
 				}
+				errCh <- err
 				return
 			}
 
@@ -89,7 +122,7 @@ func FetchAndParseV2(ctx context.Context, client httpclient.HTTPClient, bucketNa
 		}
 	}()
 
-	return records, nil
+	return records, errCh, nil
 }
 
 func readBatchedRecordsV2(ctx context.Context, client httpclient.HTTPClient, bucketName string, id int64, head bool) (chan *Record, error) {

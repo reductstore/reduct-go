@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## [1.19.2] - 2026-05-16
+
+### Fixed
+
+- Fetch the first record batch synchronously so hard errors (e.g. invalid query) are returned immediately as a normal error; add `QueryResult.Err()` to surface any error that occurs in subsequent batches, [PR-68](https://github.com/reductstore/reduct-go/pull/68)
+
 ### Changed
 
 - Pin third-party GitHub Actions in CI workflows to immutable commit SHAs, [PR-66](https://github.com/reductstore/reduct-go/pull/66)
