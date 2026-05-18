@@ -60,6 +60,18 @@ type Client interface {
 	SetReplicationMode(ctx context.Context, name string, mode model.ReplicationMode) error
 	// Remove a Replication Task
 	RemoveReplicationTask(ctx context.Context, name string) error
+	// Get a list of Lifecycle Policies
+	GetLifecycles(ctx context.Context) ([]model.LifecycleInfo, error)
+	// Get a Lifecycle Policy
+	GetLifecycle(ctx context.Context, name string) (model.FullLifecycleInfo, error)
+	// Create a Lifecycle Policy
+	CreateLifecycle(ctx context.Context, name string, settings model.LifecycleSettings) error
+	// Update a Lifecycle Policy
+	UpdateLifecycle(ctx context.Context, name string, settings model.LifecycleSettings) error
+	// Set the mode of a Lifecycle Policy
+	SetLifecycleMode(ctx context.Context, name string, mode model.LifecycleMode) error
+	// Remove a Lifecycle Policy
+	RemoveLifecycle(ctx context.Context, name string) error
 }
 
 type ClientOptions struct {
@@ -300,6 +312,33 @@ func validateReplicationTask(name string, task model.ReplicationSettings, defaul
 	return task, nil
 }
 
+func validateLifecycle(name string, lifecycle model.LifecycleSettings, defaultMode bool) (model.LifecycleSettings, error) {
+	if name == "" {
+		return lifecycle, fmt.Errorf("name is required")
+	}
+	if lifecycle.Bucket == "" {
+		return lifecycle, fmt.Errorf("bucket is required")
+	}
+	if lifecycle.MaxAge == "" {
+		return lifecycle, fmt.Errorf("max_age is required")
+	}
+	if lifecycle.LifecycleType == "" {
+		lifecycle.LifecycleType = model.LifecycleTypeDelete
+	} else if !lifecycle.LifecycleType.IsValid() {
+		return lifecycle, fmt.Errorf("invalid lifecycle type: %s", lifecycle.LifecycleType)
+	}
+	if lifecycle.Mode == "" {
+		if !defaultMode {
+			return lifecycle, nil
+		}
+		lifecycle.Mode = model.LifecycleModeEnabled
+	} else if !lifecycle.Mode.IsValid() {
+		return lifecycle, fmt.Errorf("invalid lifecycle mode: %s", lifecycle.Mode)
+	}
+
+	return lifecycle, nil
+}
+
 // GetReplicationTasks returns a list of replication tasks.
 func (c *ReductClient) GetReplicationTasks(ctx context.Context) ([]model.ReplicationInfo, error) {
 	var tasks map[string][]model.ReplicationInfo
@@ -367,4 +406,73 @@ func (c *ReductClient) SetReplicationMode(ctx context.Context, name string, mode
 // RemoveReplicationTask removes a replication task.
 func (c *ReductClient) RemoveReplicationTask(ctx context.Context, name string) error {
 	return c.HTTPClient.Delete(ctx, fmt.Sprintf("/replications/%s", name))
+}
+
+// GetLifecycles returns a list of lifecycle policies.
+func (c *ReductClient) GetLifecycles(ctx context.Context) ([]model.LifecycleInfo, error) {
+	var lifecycles map[string][]model.LifecycleInfo
+	err := c.HTTPClient.Get(ctx, "/lifecycles", &lifecycles)
+	if err != nil {
+		return nil, err
+	}
+	return lifecycles["lifecycles"], nil
+}
+
+// GetLifecycle returns full lifecycle policy info.
+func (c *ReductClient) GetLifecycle(ctx context.Context, name string) (model.FullLifecycleInfo, error) {
+	var lifecycle model.FullLifecycleInfo
+	err := c.HTTPClient.Get(ctx, fmt.Sprintf("/lifecycles/%s", name), &lifecycle)
+	if err != nil {
+		return model.FullLifecycleInfo{}, err
+	}
+	return lifecycle, nil
+}
+
+// CreateLifecycle creates a new lifecycle policy.
+func (c *ReductClient) CreateLifecycle(ctx context.Context, name string, settings model.LifecycleSettings) error {
+	settings, err := validateLifecycle(name, settings, true)
+	if err != nil {
+		return err
+	}
+	var fullLifecycle model.FullLifecycleInfo
+	err = c.HTTPClient.Post(ctx, fmt.Sprintf("/lifecycles/%s", name), settings, &fullLifecycle)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// UpdateLifecycle updates an existing lifecycle policy.
+func (c *ReductClient) UpdateLifecycle(ctx context.Context, name string, settings model.LifecycleSettings) error {
+	settings, err := validateLifecycle(name, settings, false)
+	if err != nil {
+		return err
+	}
+	var fullLifecycle model.FullLifecycleInfo
+	err = c.HTTPClient.Put(ctx, fmt.Sprintf("/lifecycles/%s", name), settings, &fullLifecycle)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// SetLifecycleMode updates the mode of an existing lifecycle policy.
+func (c *ReductClient) SetLifecycleMode(ctx context.Context, name string, mode model.LifecycleMode) error {
+	if name == "" {
+		return fmt.Errorf("name is required")
+	}
+	if mode == "" {
+		return fmt.Errorf("mode is required")
+	}
+	if !mode.IsValid() {
+		return fmt.Errorf("invalid lifecycle mode: %s", mode)
+	}
+	payload := model.LifecycleModePayload{Mode: mode}
+
+	return c.HTTPClient.Patch(ctx, fmt.Sprintf("/lifecycles/%s/mode", name), payload, nil)
+}
+
+// RemoveLifecycle removes a lifecycle policy.
+func (c *ReductClient) RemoveLifecycle(ctx context.Context, name string) error {
+	return c.HTTPClient.Delete(ctx, fmt.Sprintf("/lifecycles/%s", name))
 }

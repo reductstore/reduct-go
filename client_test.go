@@ -513,6 +513,74 @@ func TestReplicationAPI(t *testing.T) {
 
 }
 
+func TestLifecycleAPI(t *testing.T) {
+	ctx := context.Background()
+	skipVersingLower(ctx, t, "1.20.0")
+
+	bucketName := getRandomBucketName()
+	lifecycle := model.LifecycleSettings{
+		LifecycleType: model.LifecycleTypeDelete,
+		Bucket:        bucketName,
+		Entries:       []string{},
+		MaxAge:        "1h",
+		Interval:      "10m",
+		Mode:          model.LifecycleModeEnabled,
+	}
+
+	settings := model.NewBucketSettingBuilder().
+		WithQuotaSize(1024 * 1024 * 1024).
+		WithQuotaType(model.QuotaTypeFifo).
+		WithMaxBlockRecords(1000).WithMaxBlockSize(1024).Build()
+	_, _ = client.CreateBucket(ctx, bucketName, &settings) //nolint:errcheck // ignore error
+
+	t.Run("CreateLifecycle", func(t *testing.T) {
+		err := client.CreateLifecycle(ctx, "test-lifecycle", lifecycle)
+		assert.NoError(t, err)
+	})
+
+	t.Run("GetLifecycle", func(t *testing.T) {
+		lifecycleInfo, err := client.GetLifecycle(ctx, "test-lifecycle")
+		assert.NoError(t, err)
+		assert.Equal(t, "test-lifecycle", lifecycleInfo.Info.Name)
+		assert.Equal(t, model.LifecycleModeEnabled, lifecycleInfo.Info.Mode)
+	})
+
+	t.Run("UpdateLifecycle", func(t *testing.T) {
+		lifecycle.MaxAge = "2h"
+		lifecycle.Interval = "20m"
+		err := client.UpdateLifecycle(ctx, "test-lifecycle", lifecycle)
+		assert.NoError(t, err)
+	})
+
+	t.Run("SetLifecycleMode", func(t *testing.T) {
+		err := client.SetLifecycleMode(ctx, "test-lifecycle", model.LifecycleModeDryRun)
+		assert.NoError(t, err)
+
+		lifecycleInfo, err := client.GetLifecycle(ctx, "test-lifecycle")
+		assert.NoError(t, err)
+		assert.Equal(t, model.LifecycleModeDryRun, lifecycleInfo.Info.Mode)
+	})
+
+	t.Run("GetLifecycles", func(t *testing.T) {
+		lifecycles, err := client.GetLifecycles(ctx)
+		assert.NoError(t, err)
+		assert.NotEmpty(t, lifecycles)
+	})
+
+	t.Run("RemoveLifecycle", func(t *testing.T) {
+		err := client.RemoveLifecycle(ctx, "test-lifecycle")
+		assert.NoError(t, err)
+	})
+
+	t.Run("GetLifecycle", func(t *testing.T) {
+		_, err := client.GetLifecycle(ctx, "test-lifecycle")
+		assert.Error(t, err)
+	})
+
+	err := client.RemoveBucket(ctx, bucketName)
+	assert.NoError(t, err)
+}
+
 // Creating an existing bucket should fail.
 func TestCreateBucket_Fail(t *testing.T) {
 	ctx := context.Background()
