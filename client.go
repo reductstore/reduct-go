@@ -319,8 +319,8 @@ func validateLifecycle(name string, lifecycle model.LifecycleSettings, defaultMo
 	if lifecycle.Bucket == "" {
 		return lifecycle, fmt.Errorf("bucket is required")
 	}
-	if lifecycle.MaxAge == "" {
-		return lifecycle, fmt.Errorf("max_age is required")
+	if lifecycle.OlderThan == "" {
+		return lifecycle, fmt.Errorf("older_than is required")
 	}
 	if lifecycle.LifecycleType == "" {
 		lifecycle.LifecycleType = model.LifecycleTypeDelete

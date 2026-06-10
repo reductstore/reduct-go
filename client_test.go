@@ -519,10 +519,10 @@ func TestLifecycleAPI(t *testing.T) {
 
 	bucketName := getRandomBucketName()
 	lifecycle := model.LifecycleSettings{
-		LifecycleType: model.LifecycleTypeDelete,
+		LifecycleType: model.LifecycleTypeCompress,
 		Bucket:        bucketName,
 		Entries:       []string{},
-		MaxAge:        "1h",
+		OlderThan:     "1h",
 		Interval:      "10m",
 		Mode:          model.LifecycleModeEnabled,
 	}
@@ -546,7 +546,7 @@ func TestLifecycleAPI(t *testing.T) {
 	})
 
 	t.Run("UpdateLifecycle", func(t *testing.T) {
-		lifecycle.MaxAge = "2h"
+		lifecycle.OlderThan = "2h"
 		lifecycle.Interval = "20m"
 		err := client.UpdateLifecycle(ctx, "test-lifecycle", lifecycle)
 		assert.NoError(t, err)
