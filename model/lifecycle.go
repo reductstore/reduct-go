@@ -4,13 +4,14 @@ package model
 type LifecycleType string
 
 const (
-	LifecycleTypeDelete LifecycleType = "delete"
+	LifecycleTypeDelete   LifecycleType = "delete"
+	LifecycleTypeCompress LifecycleType = "compress"
 )
 
 // IsValid returns true when the lifecycle type matches a known value.
 func (t LifecycleType) IsValid() bool {
 	switch t {
-	case LifecycleTypeDelete:
+	case LifecycleTypeDelete, LifecycleTypeCompress:
 		return true
 	default:
 		return false
@@ -44,8 +45,8 @@ type LifecycleSettings struct {
 	Bucket string `json:"bucket"`
 	// List of entries to process. If empty, all matching entries are used.
 	Entries []string `json:"entries,omitempty"`
-	// Maximum record age.
-	MaxAge string `json:"max_age"`
+	// Process records older than this duration.
+	OlderThan string `json:"older_than"`
 	// Interval between lifecycle runs.
 	Interval string `json:"interval,omitempty"`
 	// Conditional query.

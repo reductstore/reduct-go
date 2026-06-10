@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add lifecycle `compress` action support and rename lifecycle age field from `max_age` to `older_than` to match the ReductStore API, [PR-71](https://github.com/reductstore/reduct-go/pull/71)
 - Add lifecycle policy API support, [PR-69](https://github.com/reductstore/reduct-go/pull/69)
 
 ## [1.19.2] - 2026-05-16
