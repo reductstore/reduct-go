@@ -1,5 +1,7 @@
 package model
 
+import "time"
+
 // LifecycleType defines lifecycle action type.
 type LifecycleType string
 
@@ -63,8 +65,12 @@ type LifecycleInfo struct {
 	IsProvisioned bool `json:"is_provisioned"`
 	// Whether the lifecycle worker is currently running.
 	IsRunning bool `json:"is_running"`
+	// Lifecycle action type.
+	LifecycleType LifecycleType `json:"type,omitempty"`
 	// Current lifecycle mode.
 	Mode LifecycleMode `json:"mode"`
+	// Timestamp of the last lifecycle run.
+	LastRun *time.Time `json:"last_run,omitempty"`
 }
 
 // LifecycleModePayload represents the payload to update lifecycle mode.
