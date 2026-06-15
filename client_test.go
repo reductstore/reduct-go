@@ -542,6 +542,7 @@ func TestLifecycleAPI(t *testing.T) {
 		lifecycleInfo, err := client.GetLifecycle(ctx, "test-lifecycle")
 		assert.NoError(t, err)
 		assert.Equal(t, "test-lifecycle", lifecycleInfo.Info.Name)
+		assert.Equal(t, model.LifecycleTypeCompress, lifecycleInfo.Info.LifecycleType)
 		assert.Equal(t, model.LifecycleModeEnabled, lifecycleInfo.Info.Mode)
 	})
 
@@ -565,6 +566,20 @@ func TestLifecycleAPI(t *testing.T) {
 		lifecycles, err := client.GetLifecycles(ctx)
 		assert.NoError(t, err)
 		assert.NotEmpty(t, lifecycles)
+
+		var lifecycleInfo *model.LifecycleInfo
+		for i := range lifecycles {
+			if lifecycles[i].Name == "test-lifecycle" {
+				lifecycleInfo = &lifecycles[i]
+				break
+			}
+		}
+
+		if assert.NotNil(t, lifecycleInfo) {
+			assert.True(t, lifecycleInfo.IsProvisioned)
+			assert.Equal(t, model.LifecycleTypeCompress, lifecycleInfo.LifecycleType)
+			assert.Equal(t, model.LifecycleModeDryRun, lifecycleInfo.Mode)
+		}
 	})
 
 	t.Run("RemoveLifecycle", func(t *testing.T) {
