@@ -147,3 +147,25 @@ Align with ReductStore v1.16 API.
 * Implement Token API, [PR-15](https://github.com/reductstore/reduct-go/pull/15)
 * Implement Replication API, [PR-16](https://github.com/reductstore/reduct-go/pull/16)
 * Improvement for Bucket API, [PR-18](https://github.com/reductstore/reduct-go/pull/18)
+
+[Unreleased]: https://github.com/reductstore/reduct-go/compare/v1.20.0...HEAD
+[1.20.0]: https://github.com/reductstore/reduct-go/compare/v1.19.2...v1.20.0
+[1.19.2]: https://github.com/reductstore/reduct-go/compare/v1.19.1...v1.19.2
+[1.19.1]: https://github.com/reductstore/reduct-go/compare/v1.19.0...v1.19.1
+[1.19.0]: https://github.com/reductstore/reduct-go/compare/v1.18.0...v1.19.0
+[1.18.0]: https://github.com/reductstore/reduct-go/compare/v1.17.1...v1.18.0
+[1.17.1]: https://github.com/reductstore/reduct-go/compare/v1.17.0...v1.17.1
+[1.17.0]: https://github.com/reductstore/reduct-go/compare/v1.16.1...v1.17.0
+[1.16.1]: https://github.com/reductstore/reduct-go/compare/v1.16.0...v1.16.1
+[1.16.0]: https://github.com/reductstore/reduct-go/compare/v1.15.2...v1.16.0
+[1.15.2]: https://github.com/reductstore/reduct-go/compare/v1.15.1...v1.15.2
+[1.15.1]: https://github.com/reductstore/reduct-go/compare/v1.15.0...v1.15.1
+[1.15.0]: https://github.com/reductstore/reduct-go/compare/v1.15.0-beta.8...v1.15.0
+[1.15.0-beta.8]: https://github.com/reductstore/reduct-go/compare/v1.15.0-beta.7...v1.15.0-beta.8
+[1.15.0-beta.7]: https://github.com/reductstore/reduct-go/compare/v1.15.0-beta.6...v1.15.0-beta.7
+[1.15.0-beta.6]: https://github.com/reductstore/reduct-go/compare/v1.15.0-beta.5...v1.15.0-beta.6
+[1.15.0-beta.5]: https://github.com/reductstore/reduct-go/compare/v1.15.0-beta.4...v1.15.0-beta.5
+[1.15.0-beta.4]: https://github.com/reductstore/reduct-go/compare/v1.15.0-beta.3...v1.15.0-beta.4
+[1.15.0-beta.3]: https://github.com/reductstore/reduct-go/compare/v1.15.0-beta.2...v1.15.0-beta.3
+[1.15.0-beta.2]: https://github.com/reductstore/reduct-go/compare/v1.15.0-beta.1...v1.15.0-beta.2
+[1.15.0-beta.1]: https://github.com/reductstore/reduct-go/releases/tag/v1.15.0-beta.1

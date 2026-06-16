@@ -14,7 +14,7 @@ The ReductStore Client SDK for Golang is an HTTP client wrapper for interacting 
 
 - HTTP client wrapper with context support
 - Clean API design following Go idioms
-- Support for [ReductStore HTTP API v1.19](https://www.reduct.store/docs/http-api)
+- Support for [ReductStore HTTP API v1.20](https://www.reduct.store/docs/http-api)
 - Token-based authentication for secure access to the database
 - Labeling for read-write operations and querying
 - Batch operations for efficient data processing
@@ -111,6 +111,7 @@ The library is backward compatible with the previous versions. However, some met
 
 The SDK supports the following ReductStore API versions:
 
+- v1.20
 - v1.19
 - v1.18
 - v1.17
