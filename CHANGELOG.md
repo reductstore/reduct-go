@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 1.20.0 - 2026-06-16
+
 ### Added
 
 - Add lifecycle info `type` and `last_run` fields to match the ReductStore API, [PR-72](https://github.com/reductstore/reduct-go/pull/72)
