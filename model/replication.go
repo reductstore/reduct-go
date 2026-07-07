@@ -31,6 +31,8 @@ type ReplicationSettings struct {
 	DstToken string `json:"dst_token,omitempty"`
 	// List of entries to replicate. If empty, all entries are replicated. Wildcards are supported.
 	Entries []string `json:"entries,omitempty"`
+	// Destination entry prefix.
+	DstPrefix string `json:"dst_prefix,omitempty"`
 	// Replicate a record every S seconds
 	EachS int64 `json:"each_s,omitempty"`
 	// Replicate every Nth record
