@@ -495,6 +495,34 @@ func TestReplicationAPI(t *testing.T) {
 		assert.Equal(t, model.ReplicationModePaused, task.Info.Mode)
 	})
 
+	t.Run("CreateUpdateGetReplicationTaskWithDstPrefix", func(t *testing.T) {
+		skipVersingLower(ctx, t, "1.21.0")
+
+		replicationName := "test-replication-dst-prefix"
+		prefixTask := task
+		prefixTask.DstPrefix = "robot-1"
+
+		err := client.CreateReplicationTask(ctx, replicationName, prefixTask)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			_ = client.RemoveReplicationTask(ctx, replicationName) //nolint:errcheck // best-effort cleanup
+		})
+
+		createdTask, err := client.GetReplicationTask(ctx, replicationName)
+		require.NoError(t, err)
+		require.NotNil(t, createdTask.Settings)
+		assert.Equal(t, "robot-1", createdTask.Settings.DstPrefix)
+
+		prefixTask.DstPrefix = "line-a"
+		err = client.UpdateReplicationTask(ctx, replicationName, prefixTask)
+		require.NoError(t, err)
+
+		updatedTask, err := client.GetReplicationTask(ctx, replicationName)
+		require.NoError(t, err)
+		require.NotNil(t, updatedTask.Settings)
+		assert.Equal(t, "line-a", updatedTask.Settings.DstPrefix)
+	})
+
 	t.Run("GetReplicationTasks", func(t *testing.T) {
 		tasks, err := client.GetReplicationTasks(ctx)
 		assert.NoError(t, err)
