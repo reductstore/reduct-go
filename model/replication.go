@@ -9,10 +9,29 @@ const (
 	ReplicationModeDisabled ReplicationMode = "disabled"
 )
 
+// ReplicationCompression defines the replication payload compression.
+type ReplicationCompression string
+
+const (
+	ReplicationCompressionNone ReplicationCompression = "none"
+	ReplicationCompressionZstd ReplicationCompression = "zstd"
+	ReplicationCompressionGzip ReplicationCompression = "gzip"
+)
+
 // IsValid returns true when the mode matches a known replication mode.
 func (m ReplicationMode) IsValid() bool {
 	switch m {
 	case ReplicationModeEnabled, ReplicationModePaused, ReplicationModeDisabled:
+		return true
+	default:
+		return false
+	}
+}
+
+// IsValid returns true when the compression matches a known replication compression.
+func (c ReplicationCompression) IsValid() bool {
+	switch c {
+	case ReplicationCompressionNone, ReplicationCompressionZstd, ReplicationCompressionGzip:
 		return true
 	default:
 		return false
@@ -41,6 +60,8 @@ type ReplicationSettings struct {
 	When any `json:"when,omitempty"`
 	// Replication mode
 	Mode ReplicationMode `json:"mode,omitempty"`
+	// Compression used for replication batch transfer
+	Compression ReplicationCompression `json:"compression,omitempty"`
 }
 
 // ReplicationInfo represents basic information about a replication.

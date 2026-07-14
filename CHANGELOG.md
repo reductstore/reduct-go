@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add replication compression setting support, [PR-XX](https://github.com/reductstore/reduct-go/pull/XX)
 - Add replication destination prefix setting support, [PR-76](https://github.com/reductstore/reduct-go/pull/76)
 
 ## 1.20.0 - 2026-06-16

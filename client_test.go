@@ -523,6 +523,34 @@ func TestReplicationAPI(t *testing.T) {
 		assert.Equal(t, "line-a", updatedTask.Settings.DstPrefix)
 	})
 
+	t.Run("CreateUpdateGetReplicationTaskWithCompression", func(t *testing.T) {
+		skipVersingLower(ctx, t, "1.21.0")
+
+		replicationName := "test-replication-compression"
+		compressedTask := task
+		compressedTask.Compression = model.ReplicationCompressionZstd
+
+		err := client.CreateReplicationTask(ctx, replicationName, compressedTask)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			_ = client.RemoveReplicationTask(ctx, replicationName) //nolint:errcheck // best-effort cleanup
+		})
+
+		createdTask, err := client.GetReplicationTask(ctx, replicationName)
+		require.NoError(t, err)
+		require.NotNil(t, createdTask.Settings)
+		assert.Equal(t, model.ReplicationCompressionZstd, createdTask.Settings.Compression)
+
+		compressedTask.Compression = model.ReplicationCompressionGzip
+		err = client.UpdateReplicationTask(ctx, replicationName, compressedTask)
+		require.NoError(t, err)
+
+		updatedTask, err := client.GetReplicationTask(ctx, replicationName)
+		require.NoError(t, err)
+		require.NotNil(t, updatedTask.Settings)
+		assert.Equal(t, model.ReplicationCompressionGzip, updatedTask.Settings.Compression)
+	})
+
 	t.Run("GetReplicationTasks", func(t *testing.T) {
 		tasks, err := client.GetReplicationTasks(ctx)
 		assert.NoError(t, err)
@@ -539,6 +567,23 @@ func TestReplicationAPI(t *testing.T) {
 		assert.Error(t, err)
 	})
 
+}
+
+func TestValidateReplicationTaskInvalidCompression(t *testing.T) {
+	task := model.ReplicationSettings{
+		SrcBucket:   "src",
+		DstBucket:   "dst",
+		DstHost:     "http://localhost:8383",
+		Compression: model.ReplicationCompression("brotli"),
+	}
+
+	_, err := validateReplicationTask("test-replication", task, true)
+	require.Error(t, err)
+	assert.EqualError(t, err, "invalid replication compression: brotli")
+
+	_, err = validateReplicationTask("test-replication", task, false)
+	require.Error(t, err)
+	assert.EqualError(t, err, "invalid replication compression: brotli")
 }
 
 func TestLifecycleAPI(t *testing.T) {

@@ -300,6 +300,9 @@ func validateReplicationTask(name string, task model.ReplicationSettings, defaul
 	if task.DstHost == "" {
 		return task, fmt.Errorf("dst_host is required")
 	}
+	if task.Compression != "" && !task.Compression.IsValid() {
+		return task, fmt.Errorf("invalid replication compression: %s", task.Compression)
+	}
 	if task.Mode == "" {
 		if !defaultMode {
 			return task, nil
