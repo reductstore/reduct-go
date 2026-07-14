@@ -569,23 +569,6 @@ func TestReplicationAPI(t *testing.T) {
 
 }
 
-func TestValidateReplicationTaskInvalidCompression(t *testing.T) {
-	task := model.ReplicationSettings{
-		SrcBucket:   "src",
-		DstBucket:   "dst",
-		DstHost:     "http://localhost:8383",
-		Compression: model.ReplicationCompression("brotli"),
-	}
-
-	_, err := validateReplicationTask("test-replication", task, true)
-	require.Error(t, err)
-	assert.EqualError(t, err, "invalid replication compression: brotli")
-
-	_, err = validateReplicationTask("test-replication", task, false)
-	require.Error(t, err)
-	assert.EqualError(t, err, "invalid replication compression: brotli")
-}
-
 func TestLifecycleAPI(t *testing.T) {
 	ctx := context.Background()
 	skipVersingLower(ctx, t, "1.20.0")

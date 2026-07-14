@@ -28,16 +28,6 @@ func (m ReplicationMode) IsValid() bool {
 	}
 }
 
-// IsValid returns true when the compression matches a known replication compression.
-func (c ReplicationCompression) IsValid() bool {
-	switch c {
-	case ReplicationCompressionNone, ReplicationCompressionZstd, ReplicationCompressionGzip:
-		return true
-	default:
-		return false
-	}
-}
-
 // ReplicationSettings represents the settings for replication.
 type ReplicationSettings struct {
 	// Source bucket. Must exist.
