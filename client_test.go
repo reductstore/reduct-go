@@ -523,6 +523,34 @@ func TestReplicationAPI(t *testing.T) {
 		assert.Equal(t, "line-a", updatedTask.Settings.DstPrefix)
 	})
 
+	t.Run("CreateUpdateGetReplicationTaskWithCompression", func(t *testing.T) {
+		skipVersingLower(ctx, t, "1.21.0")
+
+		replicationName := "test-replication-compression"
+		compressedTask := task
+		compressedTask.Compression = model.ReplicationCompressionZstd
+
+		err := client.CreateReplicationTask(ctx, replicationName, compressedTask)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			_ = client.RemoveReplicationTask(ctx, replicationName) //nolint:errcheck // best-effort cleanup
+		})
+
+		createdTask, err := client.GetReplicationTask(ctx, replicationName)
+		require.NoError(t, err)
+		require.NotNil(t, createdTask.Settings)
+		assert.Equal(t, model.ReplicationCompressionZstd, createdTask.Settings.Compression)
+
+		compressedTask.Compression = model.ReplicationCompressionGzip
+		err = client.UpdateReplicationTask(ctx, replicationName, compressedTask)
+		require.NoError(t, err)
+
+		updatedTask, err := client.GetReplicationTask(ctx, replicationName)
+		require.NoError(t, err)
+		require.NotNil(t, updatedTask.Settings)
+		assert.Equal(t, model.ReplicationCompressionGzip, updatedTask.Settings.Compression)
+	})
+
 	t.Run("GetReplicationTasks", func(t *testing.T) {
 		tasks, err := client.GetReplicationTasks(ctx)
 		assert.NoError(t, err)
