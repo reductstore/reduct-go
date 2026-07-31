@@ -1,7 +1,6 @@
 package batch
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -11,7 +10,6 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/reductstore/reduct-go/httpclient"
@@ -67,7 +65,7 @@ func FetchAndParseV2(ctx context.Context, client httpclient.HTTPClient, bucketNa
 		defer close(errCh)
 		defer close(records)
 
-		for rec := range firstBatch {
+		for _, rec := range firstBatch {
 			select {
 			case <-ctx.Done():
 				return
@@ -79,7 +77,7 @@ func FetchAndParseV2(ctx context.Context, client httpclient.HTTPClient, bucketNa
 		}
 
 		for {
-			record, err := readBatchedRecordsV2(ctx, client, bucketName, id, head)
+			batch, err := readBatchedRecordsV2(ctx, client, bucketName, id, head)
 			if err != nil {
 				var apiErr model.APIError
 				if errors.As(err, &apiErr) && apiErr.Status == http.StatusNoContent {
@@ -97,7 +95,7 @@ func FetchAndParseV2(ctx context.Context, client httpclient.HTTPClient, bucketNa
 				return
 			}
 
-			if record == nil {
+			if len(batch) == 0 {
 				if continueQuery {
 					select {
 					case <-ctx.Done():
@@ -109,7 +107,7 @@ func FetchAndParseV2(ctx context.Context, client httpclient.HTTPClient, bucketNa
 				return
 			}
 
-			for rec := range record {
+			for _, rec := range batch {
 				select {
 				case <-ctx.Done():
 					return
@@ -125,9 +123,11 @@ func FetchAndParseV2(ctx context.Context, client httpclient.HTTPClient, bucketNa
 	return records, errCh, nil
 }
 
-func readBatchedRecordsV2(ctx context.Context, client httpclient.HTTPClient, bucketName string, id int64, head bool) (chan *Record, error) {
+// readBatchedRecordsV2 fetches one batch of records for a query using Batch
+// Protocol v2. Like the v1 reader it buffers every record but the last in a
+// single allocation and streams the last one straight off the response body.
+func readBatchedRecordsV2(ctx context.Context, client httpclient.HTTPClient, bucketName string, id int64, head bool) ([]*Record, error) {
 	path := fmt.Sprintf("/io/%s/read", bucketName)
-	records := make(chan *Record, 100)
 
 	var req *http.Request
 	var err error
@@ -144,7 +144,9 @@ func readBatchedRecordsV2(ctx context.Context, client httpclient.HTTPClient, buc
 	}
 	req.Header.Set("x-reduct-query-id", strconv.FormatInt(id, 10))
 
-	resp, err := client.Do(req) //nolint:bodyclose //intentionally needed for streaming
+	// The response body is handed to the last record of the batch, which the
+	// caller drains; every other exit path closes it explicitly.
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -154,24 +156,29 @@ func readBatchedRecordsV2(ctx context.Context, client httpclient.HTTPClient, buc
 		if errorMessage == "" {
 			errorMessage = "No content"
 		}
+		closeBody(resp)
 		return nil, model.APIError{Status: http.StatusNoContent, Message: errorMessage}
 	}
 
 	entriesHeaderValue := resp.Header.Get(entriesHeader)
 	if entriesHeaderValue == "" {
+		closeBody(resp)
 		return nil, fmt.Errorf("%s header is required", entriesHeader)
 	}
 	startHeaderValue := resp.Header.Get(startTSHeader)
 	if startHeaderValue == "" {
+		closeBody(resp)
 		return nil, fmt.Errorf("%s header is required", startTSHeader)
 	}
 
 	entries, err := parseHeaderList(entriesHeaderValue)
 	if err != nil {
+		closeBody(resp)
 		return nil, err
 	}
 	startTS, err := strconv.ParseInt(startHeaderValue, 10, 64)
 	if err != nil {
+		closeBody(resp)
 		return nil, fmt.Errorf("invalid %s header: %w", startTSHeader, err)
 	}
 
@@ -179,133 +186,123 @@ func readBatchedRecordsV2(ctx context.Context, client httpclient.HTTPClient, buc
 	if labelsHeaderValue := resp.Header.Get(labelsHeader); labelsHeaderValue != "" {
 		labelNames, err = parseHeaderList(labelsHeaderValue)
 		if err != nil {
+			closeBody(resp)
 			return nil, err
 		}
 	}
 
 	recordHeaders := parseRecordHeaders(resp.Header)
-	// Empty batch is valid - close response body and return empty channel
+	// An empty batch is valid.
 	if len(recordHeaders) == 0 {
-		resp.Body.Close()
-		close(records)
-		return records, nil
+		closeBody(resp)
+		return nil, nil
 	}
 
-	var leftover []byte
-	wg := sync.WaitGroup{}
-	wg.Add(1)
+	if err = ctx.Err(); err != nil {
+		closeBody(resp)
+		return nil, err
+	}
 
-	go func() {
-		defer close(records)
-		defer wg.Done()
+	total := len(recordHeaders)
+	lastHeaderValue := strings.EqualFold(resp.Header.Get(lastHeader), "true")
 
-		lastHeaderValue := strings.ToLower(resp.Header.Get(lastHeader)) == "true"
-		lastHeaderPerEntry := map[int]parsedHeader{}
-
-		for i, header := range recordHeaders {
-			select {
-			case <-ctx.Done():
-				err = fmt.Errorf("context canceled")
-				return
-			default:
-			}
-
-			if header.entryIndex < 0 || header.entryIndex >= len(entries) {
-				err = fmt.Errorf("invalid header '%s%d-%d': entry index out of range", headerPrefix, header.entryIndex, header.delta)
-				return
-			}
-			entryName := entries[header.entryIndex]
-			prev, ok := lastHeaderPerEntry[header.entryIndex]
-			var prevPtr *parsedHeader
-			if ok {
-				prevPtr = &prev
-			}
-			parsed, parseErr := parseRecordHeader(header.rawValue, prevPtr, labelNames)
-			if parseErr != nil {
-				err = parseErr
-				return
-			}
-			lastHeaderPerEntry[header.entryIndex] = parsed
-
-			timestamp := startTS + header.delta
-			isLastInBatch := i == len(recordHeaders)-1
-			isLastInQuery := lastHeaderValue && isLastInBatch
-
-			var body io.ReadCloser
-			switch {
-			case head:
-				body = io.NopCloser(bytes.NewReader([]byte{}))
-			case isLastInBatch:
-				if leftover != nil {
-					body = io.NopCloser(io.MultiReader(bytes.NewReader(leftover), resp.Body))
-					leftover = nil
-				} else {
-					body = resp.Body
-				}
-			default:
-				buffer := make([]byte, parsed.contentLength)
-				var n int
-				if leftover != nil {
-					n = copy(buffer, leftover)
-					leftover = leftover[n:]
-				}
-
-				remaining := parsed.contentLength - int64(n)
-				if remaining > 0 {
-					_, err = io.ReadFull(resp.Body, buffer[n:parsed.contentLength])
-					if err != nil {
-						return
-					}
-				}
-
-				body = io.NopCloser(bytes.NewReader(buffer[:parsed.contentLength]))
-			}
-
-			record := &Record{
-				Entry:       entryName,
-				Time:        timestamp,
-				Size:        parsed.contentLength,
-				Last:        isLastInQuery,
-				LastInBatch: isLastInBatch,
-				Body:        body,
-				Labels:      parsed.labels,
-				ContentType: parsed.contentType,
-			}
-
-			select {
-			case <-ctx.Done():
-				err = fmt.Errorf("context canceled")
-				return
-			default:
-				records <- record
-			}
-
-			if isLastInQuery {
-				return
-			}
+	// Parse every record header first so the buffered payload size is known
+	// before the body is touched.
+	parsed := make([]parsedHeader, total)
+	lastHeaderPerEntry := map[int]parsedHeader{}
+	var bufferedSize int64
+	for i, header := range recordHeaders {
+		if header.entryIndex < 0 || header.entryIndex >= len(entries) {
+			closeBody(resp)
+			return nil, fmt.Errorf("invalid header '%s%d-%d': entry index out of range", headerPrefix, header.entryIndex, header.delta)
 		}
-	}()
 
-	wg.Wait()
-	return records, err
+		prev, ok := lastHeaderPerEntry[header.entryIndex]
+		var prevPtr *parsedHeader
+		if ok {
+			prevPtr = &prev
+		}
+		entryHeader, parseErr := parseRecordHeader(header.rawValue, prevPtr, labelNames)
+		if parseErr != nil {
+			closeBody(resp)
+			return nil, parseErr
+		}
+		lastHeaderPerEntry[header.entryIndex] = entryHeader
+
+		parsed[i] = entryHeader
+		if i < total-1 && entryHeader.contentLength > 0 {
+			bufferedSize += entryHeader.contentLength
+		}
+	}
+
+	// Every record but the last is read in one pass into one buffer.
+	var buffered []byte
+	if !head && bufferedSize > 0 {
+		buffered = make([]byte, bufferedSize)
+		if _, err = io.ReadFull(resp.Body, buffered); err != nil {
+			closeBody(resp)
+			return nil, err
+		}
+	}
+
+	records := make([]*Record, total)
+	backing := make([]Record, total)
+	readers := make([]sliceReader, total)
+
+	var offset int64
+	for i, header := range recordHeaders {
+		isLastInBatch := i == total-1
+
+		var body io.ReadCloser
+		switch {
+		case head:
+			body = emptyBody{}
+		case isLastInBatch:
+			body = resp.Body
+		default:
+			readers[i].data = buffered[offset : offset+parsed[i].contentLength]
+			offset += parsed[i].contentLength
+			body = &readers[i]
+		}
+
+		backing[i] = Record{
+			Entry:       entries[header.entryIndex],
+			Time:        startTS + header.delta,
+			Size:        parsed[i].contentLength,
+			Last:        lastHeaderValue && isLastInBatch,
+			LastInBatch: isLastInBatch,
+			Body:        body,
+			Labels:      parsed[i].labels,
+			ContentType: parsed[i].contentType,
+		}
+		records[i] = &backing[i]
+	}
+
+	if head {
+		// Nothing streams from a HEAD response, so release the connection now.
+		closeBody(resp)
+	}
+
+	return records, nil
 }
 
 func parseRecordHeaders(headers http.Header) []recordHeader {
-	parsed := make([]recordHeader, 0)
+	parsed := make([]recordHeader, 0, len(headers))
 	for key, values := range headers {
-		name := strings.ToLower(key)
-		if !strings.HasPrefix(name, headerPrefix) {
+		// Compare case-insensitively against the canonical form rather than
+		// lower-casing every header name, which would allocate per record.
+		if len(key) <= len(headerPrefix) || !strings.EqualFold(key[:len(headerPrefix)], headerPrefix) {
 			continue
 		}
-		if name == entriesHeader ||
-			name == startTSHeader ||
-			name == labelsHeader ||
-			name == lastHeader ||
-			strings.HasPrefix(name, errorHeaderPrefix) {
+		if strings.EqualFold(key, entriesHeader) ||
+			strings.EqualFold(key, startTSHeader) ||
+			strings.EqualFold(key, labelsHeader) ||
+			strings.EqualFold(key, lastHeader) ||
+			(len(key) >= len(errorHeaderPrefix) && strings.EqualFold(key[:len(errorHeaderPrefix)], errorHeaderPrefix)) {
 			continue
 		}
 
-		suffix := name[len(headerPrefix):]
+		suffix := key[len(headerPrefix):]
 		lastDash := strings.LastIndex(suffix, "-")
 		if lastDash == -1 {
 			continue

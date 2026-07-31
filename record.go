@@ -2,6 +2,7 @@ package reductgo
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"strconv"
@@ -152,19 +153,31 @@ func (r *ReadableRecord) Read() ([]byte, error) {
 			Message: "stream is nil, nothing to read",
 		}
 	}
-	// read from stream
-	data, err := io.ReadAll(r.stream)
-	if err != nil {
+	return readStream(r.stream, r.size)
+}
+
+// readStream drains a record body. The record size is known up front, so the
+// buffer is sized exactly once instead of being grown by io.ReadAll. A short
+// stream is not an error: metadata-only records report a size but carry no
+// payload.
+func readStream(stream io.Reader, size int64) ([]byte, error) {
+	if size <= 0 {
+		return io.ReadAll(stream)
+	}
+
+	data := make([]byte, size)
+	n, err := io.ReadFull(stream, data)
+	if err != nil && !errors.Is(err, io.EOF) && !errors.Is(err, io.ErrUnexpectedEOF) {
 		return nil, err
 	}
-	return data, nil
+	return data[:n], nil
 }
 
 // ReadAsString reads the record from the stream and returns it as a string.
 //
 // use this to read the record at once.
 func (r *ReadableRecord) ReadAsString() (string, error) {
-	data, err := io.ReadAll(r.stream)
+	data, err := readStream(r.stream, r.size)
 	if err != nil {
 		return "", err
 	}
