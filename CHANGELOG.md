@@ -12,6 +12,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add replication compression setting support, [PR-78](https://github.com/reductstore/reduct-go/pull/78)
 - Add replication destination prefix setting support, [PR-76](https://github.com/reductstore/reduct-go/pull/76)
 
+### Fixed
+
+- Fix a hang when a batch contains more than 100 records (fixes [#22](https://github.com/reductstore/reduct-go/issues/22))
+- Fix a hang when a continuous query starts before any records exist
+
+### Changed
+
+- Reduce per-record cost of querying: 22-59% faster and 80-93% fewer allocations on the batch read path (fixes [#22](https://github.com/reductstore/reduct-go/issues/22))
+
 ## 1.20.0 - 2026-06-16
 
 ### Added
