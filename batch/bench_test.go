@@ -151,7 +151,7 @@ func BenchmarkParseCSVRow(b *testing.B) {
 	row := "1024,text/plain,label0=value0,label1=value1,label2=value2,label3=value3,label4=value4,label5=value5,label6=value6"
 	b.ReportAllocs()
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		result := ParseCSVRow(row)
 		if result.Size != 1024 {
 			b.Fatal("unexpected size")
