@@ -10,9 +10,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// parseCSVRowReference is the original allocation-heavy implementation of
-// ParseCSVRow, kept verbatim as an oracle so the optimised version can be
-// proven to produce identical results.
+// parseCSVRowReference is the pre-optimisation implementation of ParseCSVRow,
+// kept verbatim as the oracle for FuzzParseCSVRowMatchesReference.
+//
+// It is deliberately the slow, allocation-heavy version: its job is to define
+// the parse semantics of the record header wire format independently of the
+// implementation under test, so a rewrite of ParseCSVRow cannot quietly change
+// behaviour. Do not optimise or "fix" it — a difference between this and
+// ParseCSVRow is exactly what the fuzz test exists to catch. If the header
+// format itself ever changes, update both, and update the seed corpus.
 func parseCSVRowReference(row string) (result CSVRowResult, panicked bool) {
 	defer func() {
 		// The original panics on rows with fewer than two fields because it
