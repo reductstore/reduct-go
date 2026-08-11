@@ -619,6 +619,34 @@ func TestLifecycleAPI(t *testing.T) {
 		assert.Equal(t, model.LifecycleModeDryRun, lifecycleInfo.Info.Mode)
 	})
 
+	t.Run("CreateUpdateGetLifecycleWithProcessingInterval", func(t *testing.T) {
+		skipVersingLower(ctx, t, "1.21.0")
+
+		lifecycleName := "test-lifecycle-processing-interval"
+		lifecycleWithProcessingInterval := lifecycle
+		lifecycleWithProcessingInterval.ProcessingInterval = "12h"
+
+		err := client.CreateLifecycle(ctx, lifecycleName, lifecycleWithProcessingInterval)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			_ = client.RemoveLifecycle(ctx, lifecycleName) //nolint:errcheck // best-effort cleanup
+		})
+
+		createdLifecycle, err := client.GetLifecycle(ctx, lifecycleName)
+		require.NoError(t, err)
+		require.NotNil(t, createdLifecycle.Settings)
+		assert.Equal(t, "12h", createdLifecycle.Settings.ProcessingInterval)
+
+		lifecycleWithProcessingInterval.ProcessingInterval = "6h"
+		err = client.UpdateLifecycle(ctx, lifecycleName, lifecycleWithProcessingInterval)
+		require.NoError(t, err)
+
+		updatedLifecycle, err := client.GetLifecycle(ctx, lifecycleName)
+		require.NoError(t, err)
+		require.NotNil(t, updatedLifecycle.Settings)
+		assert.Equal(t, "6h", updatedLifecycle.Settings.ProcessingInterval)
+	})
+
 	t.Run("GetLifecycles", func(t *testing.T) {
 		lifecycles, err := client.GetLifecycles(ctx)
 		assert.NoError(t, err)
