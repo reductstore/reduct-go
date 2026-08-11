@@ -51,6 +51,8 @@ type LifecycleSettings struct {
 	OlderThan string `json:"older_than"`
 	// Interval between lifecycle runs.
 	Interval string `json:"interval,omitempty"`
+	// Maximum data-time window processed by one lifecycle run.
+	ProcessingInterval string `json:"processing_interval,omitempty"`
 	// Conditional query.
 	When any `json:"when,omitempty"`
 	// Lifecycle mode.
