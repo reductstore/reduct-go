@@ -229,6 +229,7 @@ func (b *Bucket) readRecord(ctx context.Context, entry string, ts *string, head 
 //   - TimeStamp: timestamp in microseconds, it is set to current time if not provided
 //   - ContentType: "text/plain"
 //   - Labels: record label kev:value pairs  {label1: "value1", label2: "value2"}.
+//   - Sync: wait until ReductStore has synchronously persisted the record.
 func (b *Bucket) BeginWrite(_ context.Context, entry string, options *WriteOptions) *WritableRecord {
 	var localOptions = WriteOptions{Timestamp: 0}
 	if options != nil {
@@ -243,31 +244,41 @@ func (b *Bucket) BeginWrite(_ context.Context, entry string, options *WriteOptio
 	return NewWritableRecord(b.Name, entry, b.HTTPClient, localOptions)
 }
 
-func (b *Bucket) BeginWriteBatch(_ context.Context, entry string) *Batch {
-	return newBatch(b.Name, entry, b.HTTPClient, BatchWrite)
+func (b *Bucket) BeginWriteBatch(ctx context.Context, entry string) *Batch {
+	return b.BeginWriteBatchWithOptions(ctx, entry, nil)
+}
+
+// BeginWriteBatchWithOptions creates a new batch for writing records to an entry.
+func (b *Bucket) BeginWriteBatchWithOptions(_ context.Context, entry string, options *BatchOptions) *Batch {
+	return newBatch(b.Name, entry, b.HTTPClient, BatchWrite, options)
 }
 
 func (b *Bucket) BeginUpdateBatch(_ context.Context, entry string) *Batch {
-	return newBatch(b.Name, entry, b.HTTPClient, BatchUpdate)
+	return newBatch(b.Name, entry, b.HTTPClient, BatchUpdate, nil)
 }
 
 func (b *Bucket) BeginRemoveBatch(_ context.Context, entry string) *Batch {
-	return newBatch(b.Name, entry, b.HTTPClient, BatchRemove)
+	return newBatch(b.Name, entry, b.HTTPClient, BatchRemove, nil)
 }
 
 // BeginWriteRecordBatch creates a new batch for writing records across multiple entries (Batch Protocol v2).
-func (b *Bucket) BeginWriteRecordBatch(_ context.Context) *RecordBatch {
-	return newRecordBatch(b.Name, b.HTTPClient, BatchWrite)
+func (b *Bucket) BeginWriteRecordBatch(ctx context.Context) *RecordBatch {
+	return b.BeginWriteRecordBatchWithOptions(ctx, nil)
+}
+
+// BeginWriteRecordBatchWithOptions creates a new batch for writing records across multiple entries (Batch Protocol v2).
+func (b *Bucket) BeginWriteRecordBatchWithOptions(_ context.Context, options *BatchOptions) *RecordBatch {
+	return newRecordBatch(b.Name, b.HTTPClient, BatchWrite, options)
 }
 
 // BeginUpdateRecordBatch creates a new batch for updating labels across entries (Batch Protocol v2).
 func (b *Bucket) BeginUpdateRecordBatch(_ context.Context) *RecordBatch {
-	return newRecordBatch(b.Name, b.HTTPClient, BatchUpdate)
+	return newRecordBatch(b.Name, b.HTTPClient, BatchUpdate, nil)
 }
 
 // BeginRemoveRecordBatch creates a new batch for removing records across entries (Batch Protocol v2).
 func (b *Bucket) BeginRemoveRecordBatch(_ context.Context) *RecordBatch {
-	return newRecordBatch(b.Name, b.HTTPClient, BatchRemove)
+	return newRecordBatch(b.Name, b.HTTPClient, BatchRemove, nil)
 }
 
 // QueryType represents the type of query to run.

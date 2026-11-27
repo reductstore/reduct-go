@@ -123,7 +123,7 @@ func TestBatchWrite(t *testing.T) {
 	entry := "test-batch-write"
 
 	// Create a batch
-	batch := mainTestBucket.BeginWriteBatch(ctx, entry)
+	batch := mainTestBucket.BeginWriteBatchWithOptions(ctx, entry, &BatchOptions{Sync: true})
 	assert.NotNil(t, batch)
 
 	// Add records
@@ -158,7 +158,7 @@ func TestRecordBatchWrite(t *testing.T) {
 	ctx := context.Background()
 	skipVersingLower(ctx, t, "1.18.0")
 
-	batch := mainTestBucket.BeginWriteRecordBatch(ctx)
+	batch := mainTestBucket.BeginWriteRecordBatchWithOptions(ctx, &BatchOptions{Sync: true})
 	assert.NotNil(t, batch)
 
 	ts1 := time.Now().UTC().UnixMicro()
