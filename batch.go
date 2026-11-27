@@ -39,21 +39,32 @@ type Batch struct {
 	entryName  string
 	httpClient httpclient.HTTPClient
 	batchType  BatchType
+	options    BatchOptions
 	records    map[int64]*Record
 	totalSize  int64
 	lastAccess time.Time
 	mu         sync.Mutex
 }
 
-type BatchOptions struct{}
+// BatchOptions configures batch write requests.
+type BatchOptions struct {
+	// Sync waits until ReductStore has synchronously persisted the batch.
+	Sync bool
+}
 
 // newBatch creates a new batch.
-func newBatch(bucket, entry string, client httpclient.HTTPClient, batchType BatchType) *Batch {
+func newBatch(bucket, entry string, client httpclient.HTTPClient, batchType BatchType, options *BatchOptions) *Batch {
+	localOptions := BatchOptions{}
+	if options != nil {
+		localOptions = *options
+	}
+
 	return &Batch{
 		bucketName: bucket,
 		entryName:  entry,
 		httpClient: client,
 		batchType:  batchType,
+		options:    localOptions,
 		records:    make(map[int64]*Record),
 		totalSize:  0,
 		lastAccess: time.Now().UTC(),
@@ -138,6 +149,9 @@ func (b *Batch) Write(ctx context.Context) (ErrorMap, error) {
 		req.Header = headers
 		req.Header.Set("Content-Type", "application/octet-stream")
 		req.Header.Set("Content-Length", strconv.Itoa(chunks.Len()))
+		if b.options.Sync {
+			req.Header.Set("x-reduct-sync-write", "true")
+		}
 	case BatchUpdate:
 		req, err = b.httpClient.NewRequestWithContext(ctx, http.MethodPatch, path, nil)
 		req.Header = headers

@@ -64,6 +64,7 @@ type RecordBatch struct {
 	bucketName string
 	httpClient httpclient.HTTPClient
 	batchType  BatchType
+	options    BatchOptions
 	records    map[recordBatchKey]*recordBatchRecord
 	totalSize  int64
 	lastAccess time.Time
@@ -71,11 +72,17 @@ type RecordBatch struct {
 }
 
 // newRecordBatch creates a new record batch.
-func newRecordBatch(bucket string, client httpclient.HTTPClient, batchType BatchType) *RecordBatch {
+func newRecordBatch(bucket string, client httpclient.HTTPClient, batchType BatchType, options *BatchOptions) *RecordBatch {
+	localOptions := BatchOptions{}
+	if options != nil {
+		localOptions = *options
+	}
+
 	return &RecordBatch{
 		bucketName: bucket,
 		httpClient: client,
 		batchType:  batchType,
+		options:    localOptions,
 		records:    make(map[recordBatchKey]*recordBatchRecord),
 		totalSize:  0,
 		lastAccess: time.Time{},
@@ -141,6 +148,9 @@ func (b *RecordBatch) Send(ctx context.Context) (RecordBatchErrorMap, error) {
 		req.Header = reqData.headers
 		req.Header.Set("Content-Type", "application/octet-stream")
 		req.ContentLength = reqData.contentLength
+		if b.options.Sync {
+			req.Header.Set("x-reduct-sync-write", "true")
+		}
 
 		resp, err := b.httpClient.Do(req)
 		if err != nil {

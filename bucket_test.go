@@ -49,7 +49,7 @@ func TestEntryRecordWriterAndReader(t *testing.T) {
 	assert.True(t, exists)
 
 	// create a new entry record writer
-	writer := mainTestBucket.BeginWrite(ctx, "entry-1", nil)
+	writer := mainTestBucket.BeginWrite(ctx, "entry-1", &WriteOptions{Sync: true})
 	data := map[string]any{
 		"key1": "value1",
 		"key2": float64(2),

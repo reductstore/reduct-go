@@ -16,6 +16,8 @@ type WriteOptions struct {
 	ContentType string
 	Labels      LabelMap
 	Size        int64
+	// Sync waits until ReductStore has synchronously persisted the record.
+	Sync bool
 }
 
 type WritableRecord struct {
@@ -80,6 +82,9 @@ func (w *WritableRecord) Write(data any) error {
 
 	req.Header.Set("Content-Type", w.options.ContentType)
 	req.Header.Set("Content-Length", strconv.FormatInt(contentLength, 10))
+	if w.options.Sync {
+		req.Header.Set("x-reduct-sync-write", "true")
+	}
 
 	// Custom label headers
 	for k, v := range w.options.Labels {
