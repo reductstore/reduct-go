@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add opt-in synchronous writes for single records and batches
+- Add opt-in synchronous writes for single records and batches, [PR-85](https://github.com/reductstore/reduct-go/pull/85)
 
 ## 1.21.0 - 2026-09-17
 
